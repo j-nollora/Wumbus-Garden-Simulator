@@ -1,24 +1,35 @@
 # python/modules/queue.py
 import random
 
+# Safe import for Pyodide/WASM or standard local execution
+try:
+    from bst import DisasterForecastBST
+except ImportError:
+    import sys
+    if 'bst' in sys.modules:
+        DisasterForecastBST = sys.modules['bst'].DisasterForecastBST
+    else:
+        DisasterForecastBST = globals().get('DisasterForecastBST', None)
+
+
 class EnvironmentQueue:
     """
-    Data Structure: First-In, First-Out (FIFO) Queue / Circular State Engine
-    ------------------------------------------------------------------------
+    Data Structure: First-In, First-Out (FIFO) Queue & Disaster Forecast BST Controller
+    ---------------------------------------------------------------------------------
     Manages global macro-environmental progression, daily weather shifts,
-    and probabilistic disaster event generation.
+    and 30-day Binary Search Tree forecast indexing.
 
     Role in Game Mechanics:
     1. Seasonal Progression (FIFO/Circular Array): Cycles sequentially through 
        Spring -> Summer -> Fall -> Winter every 30 in-game days.
-    2. Weather Generation: Executes daily probabilistic rolls (70% Sunny, 30% Rainy)
-       and applies auto-hydration pre-passes across tilled soil on rainy days.
-    3. Disaster Event Engine: Generates overnight probabilistic disaster events (35% chance)
-       and passes event parameters to SoilMatrixGrid for spatial execution.
+    2. Weather & Disaster Generation (BST Timeline): Queries DisasterForecastBST
+       in O(log N) time for daily weather and overnight disaster events.
+    3. Forecast Radar Interface: Exposes range queries for 3-day radar warnings
+       and in-order traversals for the 30-day modal calendar.
     """
 
     def __init__(self):
-        """Initializes seasonal calendar pointers, weather states, and disaster pools."""
+        """Initializes seasonal calendar pointers, weather states, disaster pools, and the forecast BST."""
         # Ordered list of seasons forming a circular sequence
         self.seasons = ["Spring", "Summer", "Fall", "Winter"]
 
@@ -28,9 +39,6 @@ class EnvironmentQueue:
         # In-game day counter (1 to 30 per season)
         self.current_day = 1
 
-        # Active atmospheric weather state
-        self.current_weather = "Sunny"
-        
         # Event pool for overnight environmental hazards
         self.disaster_pool = [
             "Meteorite Strike",
@@ -38,6 +46,26 @@ class EnvironmentQueue:
             "Green Rain Windstorm",
             "Earthquake"
         ]
+
+        # Active atmospheric weather state
+        self.current_weather = "Sunny"
+
+        # Initialize the 30-Day Disaster Forecast Binary Search Tree
+        self.forecast_bst = DisasterForecastBST() if DisasterForecastBST else None
+        
+        # Populate Day 1 to Day 30 forecast nodes in BST
+        self.refresh_season_forecast()
+
+        # Sync initial Day 1 weather state from BST lookup
+        if self.forecast_bst:
+            day1_node = self.forecast_bst.search_day(1)
+            if day1_node:
+                self.current_weather = day1_node.weather
+
+    def refresh_season_forecast(self):
+        """Re-seeds the 30-day forecast BST with a balanced node hierarchy."""
+        if self.forecast_bst:
+            self.forecast_bst.generate_balanced_season(self.disaster_pool)
 
     def get_current_season(self):
         """
@@ -61,9 +89,29 @@ class EnvironmentQueue:
         """
         return self.current_weather
 
+    def check_upcoming_hazards(self, lookahead_days=3):
+        """
+        Queries the BST for disasters scheduled within the next N days via O(log N + K) range query.
+        """
+        if self.forecast_bst:
+            raw = self.forecast_bst.get_upcoming_disasters(self.current_day, lookahead_days)
+            import json
+            return json.loads(raw) if isinstance(raw, str) else raw
+        return []
+
+    def get_season_calendar(self):
+        """
+        Performs an In-Order Traversal on the BST to return all 30 days chronologically.
+        """
+        if self.forecast_bst:
+            raw = self.forecast_bst.get_full_season_forecast()
+            import json
+            return json.loads(raw) if isinstance(raw, str) else raw
+        return []
+
     def roll_weather(self):
         """
-        Calculates tomorrow's atmospheric state using weighted probability.
+        Calculates atmospheric state using weighted probability (Fallback method).
 
         Returns:
             str: "Rainy" (30% probability) or "Sunny" (70% probability).
@@ -74,7 +122,7 @@ class EnvironmentQueue:
 
     def roll_disaster(self):
         """
-        Determines if an overnight disaster event occurs.
+        Determines if an overnight disaster event occurs (Fallback method).
 
         Returns:
             str or None: Selected disaster name if rolled (35% probability); otherwise None.
@@ -89,27 +137,41 @@ class EnvironmentQueue:
         """
         Advances global game time by 1 day and coordinates macro-environment state updates:
         
-        1. Calendar Increment: Increments current_day; shifts season index via FIFO/modular arithmetic 
-           when day exceeds 30.
-        2. Weather Roll: Updates current_weather state.
+        1. Calendar Increment: Increments current_day; shifts season index via FIFO/circular 
+           arithmetic and re-seeds the BST when day exceeds 30.
+        2. Forecast BST Lookup: Retrieves today's pre-calculated weather and overnight disaster 
+           from the BST in O(log N) time.
         3. Rain Hydration Pre-pass: Automatically sets is_watered = True for all tilled tiles 
-           if current_weather is "Rainy".
-        4. Event Generation & Delegation: Rolls overnight disaster event and delegates tile mutations 
-           to grid_matrix.process_day_transition().
+           if today's weather is "Rainy".
+        4. Event Delegation: Passes overnight disaster event to SoilMatrixGrid.process_day_transition().
 
         Args:
             grid_matrix (SoilMatrixGrid): Reference to the 2D matrix grid board instance.
 
-        Time Complexity: O(R * C) where R and C are rows and columns of the grid.
+        Time Complexity: O(R * C) where R and C are rows and columns of the grid board.
         """
-        # Step 1: Calendar Advancement
+        # Step 1: Calendar Advancement & Seasonal Rollover
         self.current_day += 1
         if self.current_day > 30:
             self.current_day = 1
             self.current_season_idx = (self.current_season_idx + 1) % len(self.seasons)
+            # Re-seed the Binary Search Tree for the new 30-day season
+            self.refresh_season_forecast()
 
-        # Step 2: Daily Weather Roll
-        self.current_weather = self.roll_weather()
+        # Step 2: BST Forecast Lookup in O(log N) time
+        disaster_event = None
+        if self.forecast_bst:
+            today_node = self.forecast_bst.search_day(self.current_day)
+            if today_node:
+                self.current_weather = today_node.weather
+                disaster_event = today_node.disaster
+            else:
+                self.current_weather = self.roll_weather()
+                disaster_event = self.roll_disaster()
+        else:
+            self.current_weather = self.roll_weather()
+            disaster_event = self.roll_disaster()
+
         today_season = self.get_current_season()
 
         # Step 3: Rain Hydration Pre-pass across Matrix Array
@@ -119,9 +181,6 @@ class EnvironmentQueue:
                     if tile.is_tilled:
                         tile.is_watered = True
 
-        # Step 4: Disaster Event Generation
-        disaster_event = self.roll_disaster()
-
-        # Step 5: Delegate spatial mutations to SoilMatrixGrid
+        # Step 4: Delegate spatial mutations to SoilMatrixGrid
         if grid_matrix:
             grid_matrix.process_day_transition(today_season, self.current_weather, disaster_event)

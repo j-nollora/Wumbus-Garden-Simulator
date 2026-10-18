@@ -1,52 +1,93 @@
-document.addEventListener('DOMContentLoaded', () => {
-    renderFallbackGrid();
-    updateStatusUI();
-    renderMinecraftHotbar();
+/**
+ * @file ui-core.js
+ * @description Core UI Controller & Pyodide Bridge Integration for Wumbus' Garden Simulator.
+ * Manages HUD state synchronization, tool selection, tab navigation, execution trace logging,
+ * modal overlays, and the Weather Channel 30-day Binary Search Tree (BST) forecast calendar.
+ */
 
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) closeModal(overlay.id);
-        });
-    });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.modal-overlay.active').forEach(m => closeModal(m.id));
-        }
-    });
+/* ==========================================================================
+   1. DOM Initialization & Pyodide Readiness Polling
+   ========================================================================== */
 
-    let tries = 0;
-    const timer = setInterval(() => {
-        tries += 1;
-        if (pythonInitDone) {
-            clearInterval(timer);
-        } else if (pythonStateReady()) {
-            clearInterval(timer);
-            onPyodideReady();
-        } else if (tries > 300) {
-            clearInterval(timer);
-        }
-    }, 300);
+document.addEventListener("DOMContentLoaded", () => {
+  // Render initial UI fallbacks prior to Pyodide WASM initialization
+  renderFallbackGrid();
+  updateStatusUI();
+  renderMinecraftHotbar();
+
+  // Close modals when clicking outside modal cards on the backdrop overlay
+  document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeModal(overlay.id);
+    });
+  });
+
+  // Global Escape key shortcut listener to dismiss active modal dialogs
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      document
+        .querySelectorAll(".modal-overlay.active")
+        .forEach((m) => closeModal(m.id));
+    }
+  });
+
+  // Poll Pyodide readiness state until WebAssembly runtime is fully loaded
+  let tries = 0;
+  const timer = setInterval(() => {
+    tries += 1;
+    if (pythonInitDone) {
+      clearInterval(timer);
+    } else if (pythonStateReady()) {
+      clearInterval(timer);
+      onPyodideReady();
+    } else if (tries > 300) {
+      // Timeout safety after ~90 seconds of polling
+      clearInterval(timer);
+    }
+  }, 300);
 });
 
+/**
+ * Triggered once Pyodide runtime initialization completes successfully.
+ * Synchronizes initial Python state, loads player stats, updates code viewer,
+ * and queries tomorrow's disaster forecast.
+ */
 function onPyodideReady() {
-    if (pythonInitDone) return;
-    pythonInitDone = true;
-    loadCoinsFromPython();
-    syncBucketToPython();
-    updateStatusUI();
-    window.syncPythonToUI();
-    updateCodeViewer();
-    logConsole('Python engine ready. View Mechanics.');
+  if (pythonInitDone) return;
+  pythonInitDone = true;
+
+  loadCoinsFromPython();
+  syncBucketToPython();
+  updateStatusUI();
+  window.syncPythonToUI();
+  updateCodeViewer();
+  checkDisasterForecast();
+
+  logConsole("Python engine ready. View Mechanics.");
 }
 window.onPyodideReady = onPyodideReady;
 
+/* ==========================================================================
+   2. DOM & HUD State Synchronization Helpers
+   ========================================================================== */
+
+/**
+ * Utility helper to safely set element text content by ID.
+ * @param {string} id - Target DOM element ID.
+ * @param {string} text - Text string to render.
+ */
 function setText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
 }
 
+/**
+ * Queries active HUD state properties directly from Python WASM memory environment.
+ * @returns {Object|null} Deserialized JSON object containing current season, day, weather,
+ * water bucket limits, active quest descriptions, and frog EXP stats.
+ */
 function readHudState() {
-    return pyJson(`
+  return pyJson(`
 import json
 
 def _hud_safe(fn, default=None):
@@ -75,215 +116,561 @@ json.dumps({
     `);
 }
 
+/**
+ * Master HUD UI sync method. Reads state from Python memory (or local fallbacks)
+ * and updates energy, water bucket, coins, season indicators, weather icons, and quest EXP bars.
+ */
 function updateStatusUI() {
-    const hud = pyReady() ? readHudState() : null;
+  const hud = pyReady() ? readHudState() : null;
 
-    if (hud) {
-        maxBucket = Math.max(1, Number(hud.max_bucket) || 5);
-        if (userBucket > maxBucket) userBucket = maxBucket;
+  // Re-calculate maximum bucket capacity from quest tree unlocks
+  if (hud) {
+    maxBucket = Math.max(1, Number(hud.max_bucket) || 5);
+    if (userBucket > maxBucket) userBucket = maxBucket;
+  }
+
+  // Update Top Stat Strip DOM elements
+  setText("stat-energy", `${userEnergy}`);
+  const energyEl = document.getElementById("stat-energy");
+  if (energyEl) energyEl.title = `${userEnergy} / ${maxEnergy}`;
+
+  setText("stat-bucket", `${userBucket}/${maxBucket}`);
+  setText("stat-coins", `${userCoins}`);
+
+  if (!hud) return;
+
+  // Render active Season Name and Day Number
+  if (hud.season) {
+    const seasonEl = document.getElementById("stat-season");
+    if (seasonEl) {
+      const seasonInfo = `${hud.season} (Day ${hud.day})`;
+      seasonEl.innerHTML = `<img src="${escapeHtml(getSeasonIconUrl(hud.season))}" alt="${escapeHtml(hud.season)}" referrerpolicy="no-referrer" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 6px;"> ${escapeHtml(formatSeason(seasonInfo))}`;
     }
+  }
 
-    setText('stat-energy', `${userEnergy}`);
-    const energyEl = document.getElementById('stat-energy');
-    if (energyEl) energyEl.title = `${userEnergy} / ${maxEnergy}`;
-    setText('stat-bucket', `${userBucket}/${maxBucket}`);
-    setText('stat-coins', `${userCoins}`);
+  // Render Weather Status & Icon
+  if (hud.weather) {
+    setText("stat-weather", String(hud.weather));
+    const weatherIcon = document.getElementById("weather-icon");
+    if (weatherIcon) weatherIcon.src = getWeatherIconUrl(hud.weather);
+  }
 
-    if (!hud) return;
+  // Render Tool AOE Range Badge
+  const aoe = Math.max(1, Number(hud.aoe) || 1);
+  setText("aoe-status", `Tool Tier: ${aoe}x${aoe} AOE`);
 
-    if (hud.season) {
-        const seasonEl = document.getElementById('stat-season');
-        if (seasonEl) {
-            const seasonInfo = `${hud.season} (Day ${hud.day})`;
-            seasonEl.innerHTML = `<img src="${escapeHtml(getSeasonIconUrl(hud.season))}" alt="${escapeHtml(hud.season)}" referrerpolicy="no-referrer" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 6px;"> ${escapeHtml(formatSeason(seasonInfo))}`;
-        }
-    }
+  // Render Wumbus Quest Title, Level Badge, and EXP Progress Track
+  if (hud.quest_desc)
+    setText("frog-quest-desc", `"${wumbusText(hud.quest_desc)}"`);
+  if (hud.perk) setText("frog-perk-desc", `Reward Perk: ${hud.perk}`);
+  if (hud.level !== null && hud.level !== undefined)
+    setText("frog-level", `Lvl ${hud.level}`);
+  if (hud.title) setText("frog-title", wumbusText(hud.title));
 
-    if (hud.weather) {
-        setText('stat-weather', String(hud.weather));
-        const weatherIcon = document.getElementById('weather-icon');
-        if (weatherIcon) weatherIcon.src = getWeatherIconUrl(hud.weather);
-    }
-
-    const aoe = Math.max(1, Number(hud.aoe) || 1);
-    setText('aoe-status', `Tool Tier: ${aoe}x${aoe} AOE`);
-
-    if (hud.quest_desc) setText('frog-quest-desc', `"${wumbusText(hud.quest_desc)}"`);
-    if (hud.perk) setText('frog-perk-desc', `Reward Perk: ${hud.perk}`);
-    if (hud.level !== null && hud.level !== undefined) setText('frog-level', `Lvl ${hud.level}`);
-    if (hud.title) setText('frog-title', wumbusText(hud.title));
-
-    const exp = Number(hud.exp) || 0;
-    const reqExp = Number(hud.req_exp) || 0;
-    const expPercent = reqExp > 0 ? Math.max(0, Math.min(100, Math.floor((exp / reqExp) * 100))) : 0;
-    const bar = document.getElementById('frog-exp-bar');
-    if (bar) bar.style.width = `${expPercent}%`;
+  const exp = Number(hud.exp) || 0;
+  const reqExp = Number(hud.req_exp) || 0;
+  const expPercent =
+    reqExp > 0
+      ? Math.max(0, Math.min(100, Math.floor((exp / reqExp) * 100)))
+      : 0;
+  const bar = document.getElementById("frog-exp-bar");
+  if (bar) bar.style.width = `${expPercent}%`;
 }
 window.updateStatsUI = updateStatusUI;
 
+/* ==========================================================================
+   3. Tool Selection & Navigation Tab Control
+   ========================================================================== */
+
+/**
+ * Synchronizes active visual state (`.active` class and `aria-pressed`) on toolbar buttons.
+ */
 function syncToolButtons() {
-    document.querySelectorAll('.tool-btn').forEach(btn => {
-        const on = btn.id === `tool-${activeTool}`;
-        btn.classList.toggle('active', on);
-        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
+  document.querySelectorAll(".tool-btn").forEach((btn) => {
+    const on = btn.id === `tool-${activeTool}`;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
 }
 
+/**
+ * Sets the active farming tool action (hoe, water, plant, scythe, shovel, fertilizer).
+ * @param {string} toolName - Name identifier of selected tool.
+ * @param {boolean} [silent=false] - If true, suppresses console output message.
+ */
 function setTool(toolName, silent = false) {
-    activeTool = toolName;
-    syncToolButtons();
-    if (!silent) logConsole(`Selected Tool: ${String(toolName).toUpperCase()}`);
+  activeTool = toolName;
+  syncToolButtons();
+  if (!silent) logConsole(`Selected Tool: ${String(toolName).toUpperCase()}`);
 }
 
+/**
+ * Switches the right panel town view between Quests, Shop, and Sell tabs,
+ * updating ARIA accessibility attributes and triggering DSA execution traces.
+ * @param {string} name - Tab name ('quests', 'shop', or 'sell').
+ */
 function switchTab(name) {
-    ['quests', 'shop', 'sell'].forEach(t => {
-        const tab = document.getElementById(`tab-${t}`);
-        const panel = document.getElementById(`panel-${t}`);
-        const isActive = t === name;
+  ["quests", "shop", "sell"].forEach((t) => {
+    const tab = document.getElementById(`tab-${t}`);
+    const panel = document.getElementById(`panel-${t}`);
+    const isActive = t === name;
 
-        if (tab) {
-            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
-            tab.classList.toggle('active', isActive);
-            tab.tabIndex = isActive ? 0 : -1; // FIXED: Changed 'on' to 'isActive'
-        }
-
-        if (panel) {
-            if (isActive) {
-                panel.removeAttribute('hidden');
-            } else {
-                panel.setAttribute('hidden', '');
-            }
-        }
-    });
-
-    // SQA Function Call Trace
-    if (name === 'quests') {
-        logPythonTrace("Opened Quests View", [
-            { file: "hierarchical_tree_and_traversals.py", fn: "quest_tree.get_current_quest_desc()", dsa: "Tree Pointer Traversal" }
-        ]);
-    } else if (name === 'shop') {
-        logPythonTrace("Opened Shop View", [
-            { file: "queue.py", fn: "environment_queue.get_current_season()", dsa: "FIFO Queue Inspection" },
-            { file: "oop_concepts.py", fn: "CROP_DATABASE.values()", dsa: "Static Registry Iteration" }
-        ]);
-    } else if (name === 'sell') {
-        logPythonTrace("Opened Sell View", [
-            { file: "hash.py", fn: "inventory_hash.to_list()", dsa: "Hash Table Array Serialization" }
-        ]);
+    if (tab) {
+      tab.setAttribute("aria-selected", isActive ? "true" : "false");
+      tab.classList.toggle("active", isActive);
+      tab.tabIndex = isActive ? 0 : -1;
     }
+
+    if (panel) {
+      if (isActive) {
+        panel.removeAttribute("hidden");
+      } else {
+        panel.setAttribute("hidden", "");
+      }
+    }
+  });
+
+  // Log Data Structure and Algorithm (DSA) function call traces upon tab navigation
+  if (name === "quests") {
+    logPythonTrace("Opened Quests View", [
+      {
+        file: "hierarchical_tree_and_traversals.py",
+        fn: "quest_tree.get_current_quest_desc()",
+        dsa: "Tree Pointer Traversal",
+      },
+    ]);
+  } else if (name === "shop") {
+    logPythonTrace("Opened Shop View", [
+      {
+        file: "queue.py",
+        fn: "environment_queue.get_current_season()",
+        dsa: "FIFO Queue Inspection",
+      },
+      {
+        file: "oop_concepts.py",
+        fn: "CROP_DATABASE.values()",
+        dsa: "Static Registry Iteration",
+      },
+    ]);
+  } else if (name === "sell") {
+    logPythonTrace("Opened Sell View", [
+      {
+        file: "hash.py",
+        fn: "inventory_hash.to_list()",
+        dsa: "Hash Table Array Serialization",
+      },
+    ]);
+  }
 }
 
+/* ==========================================================================
+   4. Action Output & Function Trace Logging Systems
+   ========================================================================== */
+
+/**
+ * Outputs a real-time player action message to the top garden banner console.
+ * @param {string} msg - Action description text.
+ */
 function logConsole(msg) {
-    const el = document.getElementById('output-console');
-    if (!el) return;
-    el.textContent = `${msg}`;
-    el.title = msg; // Native hover tooltip fallback
+  const el = document.getElementById("output-console");
+  if (!el) return;
+  el.textContent = `${msg}`;
+  el.title = msg; // Native hover tooltip fallback
 }
 window.logConsole = logConsole;
 
-function openModal(id) {
-    if (id === 'shop-modal') renderShopSeasonalCrops();
-    if (id === 'code-modal') updateCodeViewer();
-    const modal = document.getElementById(id);
-    if (modal) modal.classList.add('active');
-}
-
-function closeModal(id) {
-    const modal = document.getElementById(id);
-    if (modal) modal.classList.remove('active');
-}
-
-function updateCodeViewer() {
-    const selector = document.getElementById('file-selector');
-    const viewer = document.getElementById('code-viewer');
-    if (!selector || !viewer) return;
-
-    const modules = window.pythonModules;
-    let source;
-    if (modules instanceof Map) source = modules.get(selector.value);
-    else if (modules && typeof modules === 'object') source = modules[selector.value];
-
-    viewer.textContent = source || "# Code loading...";
-}
-window.updateCodeViewer = updateCodeViewer;
-
-function getSeasonIconUrl(season) {
-    const s = String(normalizePy(season) || '').toLowerCase();
-    if (s.includes('summer')) return 'https://stardewvalleywiki.com/mediawiki/images/8/85/Summer.png';
-    if (s.includes('fall') || s.includes('autumn')) return 'https://stardewvalleywiki.com/mediawiki/images/5/5d/Fall.png';
-    if (s.includes('winter')) return 'https://stardewvalleywiki.com/Special:FilePath/Winter.png';
-    return 'https://stardewvalleywiki.com/mediawiki/images/9/9c/Spring.png';
-}
-
-function getWeatherIconUrl(weather) {
-    const w = String(normalizePy(weather) || '').toLowerCase();
-    if (w.includes('storm') || w.includes('thunder')) return STORM_ICON;
-    if (w.includes('rain') || w.includes('drizzle') || w.includes('shower')) return RAIN_ICON;
-    if (w.includes('snow') || w.includes('frost') || w.includes('blizzard')) return SNOW_ICON;
-    return SUN_ICON;
-}
-
-function wumbusText(text) {
-    return String(text || '').replace(/The Frog Prince/g, 'Wumbus').replace(/Frog Prince/g, 'Wumbus');
-}
-
-function formatSeason(text) {
-    const m = String(text || '').match(/^(\S+)\s*\(Day\s*(\d+)\)/i);
-    return m ? `${m[1]} ${String(m[2]).padStart(2, '0')}` : text;
-}
-
-// Tab switcher for Action Log vs Function Trace View
-function switchLogTab(tabName) {
-    const actionsTab = document.getElementById('log-tab-actions');
-    const traceTab = document.getElementById('log-tab-trace');
-    const consoleBox = document.getElementById('output-console');
-    const traceBox = document.getElementById('trace-console');
-
-    if (tabName === 'actions') {
-        if (actionsTab) actionsTab.classList.add('active');
-        if (traceTab) traceTab.classList.remove('active');
-        if (consoleBox) consoleBox.hidden = false;
-        if (traceBox) traceBox.hidden = true;
-    } else {
-        if (traceTab) traceTab.classList.add('active');
-        if (actionsTab) actionsTab.classList.remove('active');
-        if (traceBox) traceBox.hidden = false;
-        if (consoleBox) consoleBox.hidden = true;
-    }
-}
-window.switchLogTab = switchLogTab;
-
 /**
  * Dynamically records and renders Python function traces for the latest triggered action,
- * clearing the previous trace content on every new action (like Ctrl+L).
- * @param {string} actionTitle - Name of the action (e.g., "Till Soil Action")
- * @param {Array<{fn: string, file: string, dsa: string}>} calls - List of executed python functions
+ * clearing the previous trace content on every new action (similar to Ctrl+L in terminals).
+ * @param {string} actionTitle - Name of the action (e.g., "Till Soil Action").
+ * @param {Array<{fn: string, file: string, dsa: string}>} calls - List of executed Python functions.
  */
 function logPythonTrace(actionTitle, calls) {
-    const traceBox = document.getElementById('trace-console');
-    if (!traceBox) return;
+  const traceBox = document.getElementById("trace-console");
+  if (!traceBox) return;
 
-    let traceHTML = `<div style="color: #f59e0b; font-weight: bold; margin-bottom: 4px; border-bottom: 1px dashed rgba(245, 158, 11, 0.4); padding-bottom: 2px;">[ACTION]: ${escapeHtml(actionTitle)}</div>`;
-    traceHTML += `<div style="font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.5; padding-left: 4px;">`;
+  let traceHTML = `<div style="color: #f59e0b; font-weight: bold; margin-bottom: 4px; border-bottom: 1px dashed rgba(245, 158, 11, 0.4); padding-bottom: 2px;">[ACTION]: ${escapeHtml(actionTitle)}</div>`;
+  traceHTML += `<div style="font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.5; padding-left: 4px;">`;
 
-    calls.forEach(call => {
-        traceHTML += `
+  calls.forEach((call) => {
+    traceHTML += `
             <div style="color: #a7f3d0; margin-bottom: 1px;">
                 ⌂ &nbsp;${escapeHtml(call.file)}
             </div>
             <div style="color: #fef08a; padding-left: 12px; margin-bottom: 1px;">
                 ▸ &nbsp;${escapeHtml(call.fn)}
             </div>
-            ${call.dsa ? `
+            ${
+              call.dsa
+                ? `
             <div style="color: #cbd5e1; padding-left: 24px; margin-bottom: 4px;">
                 ⊛ &nbsp;${escapeHtml(call.dsa)}
-            </div>` : ''}
+            </div>`
+                : ""
+            }
         `;
-    });
+  });
 
-    traceHTML += `</div>`;
+  traceHTML += `</div>`;
 
-    // Replaces (clears) the old console contents with only the current action's trace
-    traceBox.innerHTML = traceHTML;
+  // Replaces previous trace panel contents with current action execution trace
+  traceBox.innerHTML = traceHTML;
 }
 window.logPythonTrace = logPythonTrace;
+
+/**
+ * Tab switcher helper for Action Console vs Function Trace View panels.
+ * @param {string} tabName - Selected panel ('actions' or 'trace').
+ */
+function switchLogTab(tabName) {
+  const actionsTab = document.getElementById("log-tab-actions");
+  const traceTab = document.getElementById("log-tab-trace");
+  const consoleBox = document.getElementById("output-console");
+  const traceBox = document.getElementById("trace-console");
+
+  if (tabName === "actions") {
+    if (actionsTab) actionsTab.classList.add("active");
+    if (traceTab) traceTab.classList.remove("active");
+    if (consoleBox) consoleBox.hidden = false;
+    if (traceBox) traceBox.hidden = true;
+  } else {
+    if (traceTab) traceTab.classList.add("active");
+    if (actionsTab) actionsTab.classList.remove("active");
+    if (traceBox) traceBox.hidden = false;
+    if (consoleBox) consoleBox.hidden = true;
+  }
+}
+window.switchLogTab = switchLogTab;
+
+/* ==========================================================================
+   5. Modal Dialog Management & Python Source Viewer
+   ========================================================================== */
+
+/**
+ * Opens a modal dialog by ID and initializes modal content if needed.
+ * @param {string} id - Target DOM element ID of modal overlay.
+ */
+function openModal(id) {
+  if (id === "shop-modal") renderShopSeasonalCrops();
+  if (id === "code-modal") updateCodeViewer();
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.add("active");
+}
+
+/**
+ * Closes an active modal dialog overlay by ID.
+ * @param {string} id - Target DOM element ID of modal overlay.
+ */
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove("active");
+}
+
+/**
+ * Reads selected Python module source code from `window.pythonModules`
+ * and updates the code viewer pre-block element in the reference modal.
+ */
+function updateCodeViewer() {
+  const selector = document.getElementById("file-selector");
+  const viewer = document.getElementById("code-viewer");
+  if (!selector || !viewer) return;
+
+  const modules = window.pythonModules;
+  let source;
+  if (modules instanceof Map) source = modules.get(selector.value);
+  else if (modules && typeof modules === "object")
+    source = modules[selector.value];
+
+  viewer.textContent = source || "# Code loading...";
+}
+window.updateCodeViewer = updateCodeViewer;
+
+/* ==========================================================================
+   6. Asset Asset URL Resolvers & Text Formatting Filters
+   ========================================================================== */
+
+/**
+ * Resolves the seasonal wiki badge icon URL based on season string.
+ * @param {string} season - Season name ('Spring', 'Summer', 'Fall', 'Winter').
+ * @returns {string} Icon URL.
+ */
+function getSeasonIconUrl(season) {
+  const s = String(normalizePy(season) || "").toLowerCase();
+  if (s.includes("summer"))
+    return "https://stardewvalleywiki.com/mediawiki/images/8/85/Summer.png";
+  if (s.includes("fall") || s.includes("autumn"))
+    return "https://stardewvalleywiki.com/mediawiki/images/5/5d/Fall.png";
+  if (s.includes("winter"))
+    return "https://stardewvalleywiki.com/Special:FilePath/Winter.png";
+  return "https://stardewvalleywiki.com/mediawiki/images/9/9c/Spring.png";
+}
+
+/**
+ * Resolves atmospheric weather condition icon URL.
+ * @param {string} weather - Weather condition ('Sunny', 'Rainy', etc.).
+ * @returns {string} Icon URL.
+ */
+function getWeatherIconUrl(weather) {
+  const w = String(normalizePy(weather) || "").toLowerCase();
+  if (w.includes("storm") || w.includes("thunder")) return STORM_ICON;
+  if (w.includes("rain") || w.includes("drizzle") || w.includes("shower"))
+    return RAIN_ICON;
+  if (w.includes("snow") || w.includes("frost") || w.includes("blizzard"))
+    return SNOW_ICON;
+  return SUN_ICON;
+}
+
+/**
+ * Replaces legacy NPC text names with Wumbus branding.
+ * @param {string} text - Raw input string.
+ * @returns {string} Sanitized text string.
+ */
+function wumbusText(text) {
+  return String(text || "")
+    .replace(/The Frog Prince/g, "Wumbus")
+    .replace(/Frog Prince/g, "Wumbus");
+}
+
+/**
+ * Formats season and day number strings for clean header display.
+ * @param {string} text - Raw season string (e.g., "Spring (Day 1)").
+ * @returns {string} Formatted string (e.g., "Spring 01").
+ */
+function formatSeason(text) {
+  const m = String(text || "").match(/^(\S+)\s*\(Day\s*(\d+)\)/i);
+  return m ? `${m[1]} ${String(m[2]).padStart(2, "0")}` : text;
+}
+
+/* ==========================================================================
+   7. Weather Channel 30-Day BST Forecast Radar & Modal System
+   ========================================================================== */
+
+/**
+ * Safely evaluates Python global queue variables across variable name fallbacks.
+ * @returns {string} Python code expression string.
+ */
+function getPythonQueueExpr() {
+  return `(globals().get('climate_queue') or globals().get('environment_queue') or globals().get('queue'))`;
+}
+
+/**
+ * Opens the TV Weather Channel Modal safely.
+ * `openModal` is invoked first to guarantee UI opening even if Python queries fail.
+ */
+function openForecastModal() {
+  openModal("forecast-modal");
+
+  try {
+    if (typeof checkDisasterForecast === "function") checkDisasterForecast();
+  } catch (e) {
+    console.error("Radar update error:", e);
+  }
+
+  try {
+    if (typeof renderForecastCalendar === "function") renderForecastCalendar();
+  } catch (e) {
+    console.error("Calendar update error:", e);
+  }
+}
+window.openForecastModal = openForecastModal;
+
+/**
+ * Queries the 30-day Binary Search Tree (BST) specifically for tomorrow's forecast (current_day + 1).
+ * Updates both the TV header LED/GIF indicator and the modal radar banner card.
+ */
+function checkDisasterForecast() {
+  if (!window.runPython) return;
+
+  try {
+    const pyCode = `
+import json
+q = globals().get('climate_queue') or globals().get('environment_queue') or globals().get('queue')
+cur_day = getattr(q, 'current_day', 1) if q else 1
+cal = q.get_season_calendar() if (q and hasattr(q, 'get_season_calendar')) else []
+
+# Parse calendar array if returned as serialized JSON string
+if isinstance(cal, str):
+    try:
+        cal = json.loads(cal)
+    except:
+        cal = []
+
+# Filter hazard node specifically for tomorrow (current_day + 1)
+tomorrow = cur_day + 1
+tomorrow_node = next((node for node in cal if isinstance(node, dict) and node.get('day') == tomorrow), None)
+
+upcoming = []
+if tomorrow_node and (tomorrow_node.get('disaster') or tomorrow_node.get('has_disaster')):
+    upcoming.append(tomorrow_node)
+
+json.dumps(upcoming)
+        `;
+
+    const jsonStr = window.runPython(pyCode);
+    let upcomingHazards = [];
+
+    if (jsonStr) {
+      try {
+        upcomingHazards =
+          typeof jsonStr === "string" ? JSON.parse(jsonStr) : jsonStr;
+      } catch (err) {
+        upcomingHazards = [];
+      }
+    }
+
+    const hasDanger =
+      Array.isArray(upcomingHazards) && upcomingHazards.length > 0;
+
+    // 1. Update TV Header Screen GIF & Red/Green LED Alert Dot for Tomorrow
+    if (typeof updateTVForecastIcon === "function") {
+      updateTVForecastIcon(hasDanger);
+    }
+
+    // 2. Update Modal Radar Banner Card Text & Risk Badge
+    const radarTagEl = document.querySelector(".radar-tag");
+    const radarTextEl = document.getElementById("forecast-radar-text");
+    const riskPillEl = document.getElementById("forecast-risk-pill");
+
+    if (radarTagEl) {
+      radarTagEl.textContent = "TOMORROW'S FORECAST RADAR";
+    }
+
+    if (hasDanger) {
+      const nextHazard = upcomingHazards[0];
+      const hazardName = nextHazard.disaster || "Environmental Hazard";
+      const dayNum =
+        nextHazard.day < 10 ? "0" + nextHazard.day : nextHazard.day;
+
+      if (radarTextEl) {
+        radarTextEl.textContent = `"WARNING! ${hazardName} predicted for TOMORROW (Day ${dayNum})! Protect your crops!"`;
+      }
+      if (riskPillEl) {
+        riskPillEl.textContent = "HAZARD DETECTED";
+        riskPillEl.className = "risk-badge risk-danger";
+      }
+    } else {
+      if (radarTextEl) {
+        radarTextEl.textContent = `"Welcome to the Weather Channel! No disaster predicted for tomorrow."`;
+      }
+      if (riskPillEl) {
+        riskPillEl.textContent = "SAFE";
+        riskPillEl.className = "risk-badge risk-safe";
+      }
+    }
+  } catch (e) {
+    console.error("Forecast BST Query Error:", e);
+  }
+}
+window.checkDisasterForecast = checkDisasterForecast;
+
+/**
+ * Updates the Header TV Set GIF image and top-right LED indicator status
+ * based on BST tomorrow disaster forecast query results.
+ *
+ * @param {boolean} upcomingDisasterFound - True if a disaster is predicted for tomorrow.
+ */
+function updateTVForecastIcon(upcomingDisasterFound) {
+  const tvImg = document.getElementById("tv-screen-gif");
+  const ledDot = document.getElementById("tv-alert-dot");
+
+  const dangerGif =
+    typeof TV_FORECAST_CONFIG !== "undefined" && TV_FORECAST_CONFIG.DANGER_GIF
+      ? TV_FORECAST_CONFIG.DANGER_GIF
+      : "https://stardewvalleywiki.com/mediawiki/images/3/3b/LuckSkullMin.gif";
+
+  const safeGif =
+    typeof TV_FORECAST_CONFIG !== "undefined" && TV_FORECAST_CONFIG.SAFE_GIF
+      ? TV_FORECAST_CONFIG.SAFE_GIF
+      : "https://stardewvalleywiki.com/mediawiki/images/8/8a/LuckStarMax.gif";
+
+  if (upcomingDisasterFound) {
+    if (tvImg) tvImg.src = dangerGif;
+    if (ledDot) {
+      ledDot.classList.add("has-danger");
+      ledDot.classList.remove("is-safe");
+    }
+  } else {
+    if (tvImg) tvImg.src = safeGif;
+    if (ledDot) {
+      ledDot.classList.remove("has-danger");
+      ledDot.classList.add("is-safe");
+    }
+  }
+}
+window.updateTVForecastIcon = updateTVForecastIcon;
+
+/**
+ * Executes an In-Order Traversal on the 30-day Binary Search Tree (bst.py)
+ * to render all 30 days chronologically into the modal calendar grid.
+ */
+function renderForecastCalendar() {
+  const gridEl = document.getElementById("forecast-grid-matrix");
+  if (!gridEl || !window.runPython) return;
+
+  gridEl.innerHTML = "";
+
+  try {
+    const pyCode =
+      "import json\n" +
+      "q = globals().get('climate_queue') or globals().get('environment_queue') or globals().get('queue')\n" +
+      "res = q.get_season_calendar() if (q and hasattr(q, 'get_season_calendar')) else []\n" +
+      "json.dumps(res)";
+
+    const jsonStr = window.runPython(pyCode);
+    let calendarData = [];
+
+    if (jsonStr) {
+      try {
+        calendarData =
+          typeof jsonStr === "string" ? JSON.parse(jsonStr) : jsonStr;
+      } catch (err) {
+        calendarData = [];
+      }
+    }
+
+    const currentDayVal = window.runPython(
+      "getattr(globals().get('climate_queue') or globals().get('environment_queue'), 'current_day', 1)",
+    );
+    const currentDay = Number(currentDayVal) || 1;
+
+    if (!Array.isArray(calendarData) || calendarData.length === 0) {
+      gridEl.innerHTML = `<p style="font-size:0.78rem; color:#555; text-align:center; grid-column:span 6; width:100%; padding: 12px;">No forecast data available.</p>`;
+      return;
+    }
+
+    const iconMap =
+      typeof FORECAST_ICON_MAP !== "undefined" ? FORECAST_ICON_MAP : {};
+    const fallbackIcon =
+      "https://stardewvalleywiki.com/mediawiki/images/2/26/SunAnimated.gif";
+
+    // Populate grid cards for Day 1 through Day 30
+    calendarData.forEach((node) => {
+      const dayCard = document.createElement("div");
+      const isToday = Number(node.day) === currentDay;
+      const hasHazard = Boolean(node.has_disaster || node.disaster);
+
+      let cardClass = "forecast-day-card";
+      if (isToday) cardClass += " active-today";
+      if (hasHazard) cardClass += " danger-day";
+      dayCard.className = cardClass;
+
+      const iconKey = node.disaster || node.weather || "Sunny";
+      const iconUrl = iconMap[iconKey] || fallbackIcon;
+      const labelText = node.disaster
+        ? node.disaster.split(" ")[0]
+        : node.weather;
+
+      dayCard.innerHTML = `
+                <span class="day-num">Day ${node.day < 10 ? "0" + node.day : node.day}</span>
+                <img src="${iconUrl}" alt="${labelText}" class="day-icon" onerror="this.src='${fallbackIcon}'" />
+                <span class="day-status ${hasHazard ? "hazard-text" : ""}">${labelText}</span>
+            `;
+
+      gridEl.appendChild(dayCard);
+    });
+  } catch (e) {
+    console.error("Error rendering forecast calendar:", e);
+    gridEl.innerHTML = `<p style="font-size:0.78rem; color:#666; text-align:center; grid-column:span 6; width:100%;">Failed to load forecast data.</p>`;
+  }
+}
+window.renderForecastCalendar = renderForecastCalendar;

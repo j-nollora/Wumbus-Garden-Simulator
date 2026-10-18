@@ -1,11 +1,20 @@
+/* ==========================================================================
+   Wumbus' Garden Simulator — Master Stylesheet
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Imports & Typography Config
+   -------------------------------------------------------------------------- */
 @import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Nunito:wght@600;700;800&family=Pixelify+Sans:wght@500;600;700&display=swap");
 
-/* ---------- Tokens (taken from the wireframe) ---------- */
+/* Global Theme Design Tokens & Color Palette */
 :root {
+  /* Brand & Layout Palette */
   --ink: #2a2018;
   --page: #24382c;
-
   --mint: #e5f4df;
+
+  /* Sky & Card Accents */
   --sky: #a9d8fb;
   --sky-card: #f3faff;
   --butter: #fff0a6;
@@ -15,6 +24,7 @@
   --rose: #ffc4cc;
   --rose-deep: #ff9fae;
 
+  /* Farm Grid & Soil Tiles */
   --frame: #5a3a2a;
   --frame-edge: #2f1d13;
   --tile: #d27d30;
@@ -22,19 +32,25 @@
   --tile-tilled: #8f5127;
   --tile-tilled-edge: #5e3216;
 
+  /* Inventory & Tool Rails */
   --rail-gray: #b4bdc6;
   --rail-green: #3f9d68;
   --slot: #f6f7f8;
   --slot-green: #c8efcf;
 
+  /* Focus & Shadow Mechanics */
   --focus: #ff8a00;
   --shadow: 0 4px 0 rgba(42, 32, 24, 0.35);
 
+  /* Font Stacks */
   --font-display: "Pixelify Sans", ui-monospace, monospace;
   --font-body: "Nunito", system-ui, sans-serif;
   --font-mono: "Fira Code", ui-monospace, monospace;
 }
 
+/* --------------------------------------------------------------------------
+   2. Base Reset & Typography
+   -------------------------------------------------------------------------- */
 *,
 *::before,
 *::after {
@@ -55,11 +71,13 @@ body {
   padding: 20px;
 }
 
+/* Pixel Art Rendering Enforcement */
 img {
   display: block;
   image-rendering: pixelated;
 }
 
+/* Accessible Focus States */
 button {
   font: inherit;
   color: inherit;
@@ -74,6 +92,7 @@ select:focus-visible,
   outline-offset: 2px;
 }
 
+/* Screen Reader Only Utility Class */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -86,7 +105,9 @@ select:focus-visible,
   border: 0;
 }
 
-/* ---------- App shell ---------- */
+/* --------------------------------------------------------------------------
+   3. Main App Outer Frame & Top Header
+   -------------------------------------------------------------------------- */
 .app {
   max-width: 1120px;
   margin: 0 auto;
@@ -100,7 +121,6 @@ select:focus-visible,
   gap: 18px;
 }
 
-/* ---------- Top bar ---------- */
 .topbar {
   display: flex;
   flex-wrap: wrap;
@@ -109,6 +129,7 @@ select:focus-visible,
   gap: 16px;
 }
 
+/* Branding & Logo */
 .brand {
   display: flex;
   align-items: center;
@@ -137,6 +158,7 @@ select:focus-visible,
   color: #5b6b5c;
 }
 
+/* Round Action Buttons (Guide / Code Viewers) */
 .menu-buttons {
   display: flex;
   flex-direction: column;
@@ -162,15 +184,100 @@ select:focus-visible,
   width: 20px;
   height: 20px;
 }
+
 .round-btn:hover {
   background: #d6fbd2;
   transform: translateY(-1px);
 }
+
 .round-btn:active {
   transform: translateY(1px);
 }
 
-/* Stat strip */
+/* Header TV Broadcast Set Component */
+.tv-set-btn {
+  position: relative;
+  height: 90px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #3e2723; /* Wooden casing theme */
+  border: 3px solid var(--ink, #2a2018);
+  border-radius: 6px;
+  box-shadow: 0 2px 0 rgba(42, 32, 24, 0.35);
+  transition:
+    transform 0.1s ease,
+    filter 0.1s ease;
+}
+
+.tv-set-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.tv-set-btn:active {
+  transform: translateY(1px);
+}
+
+.tv-screen {
+  width: 100%;
+  height: 100%;
+  background: #000000;
+  border: 2px solid #231612;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tv-screen img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+/* TV Alert LED Dot Indicator */
+.tv-power-led {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid #1a1008;
+  background-color: #2ed573;
+  box-shadow: 0 0 4px #2ed573;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.tv-power-led.is-safe {
+  background-color: #2ed573;
+  box-shadow: 0 0 6px #2ed573;
+}
+
+.tv-power-led.has-danger {
+  background-color: #ff4757 !important;
+  box-shadow: 0 0 8px #ff4757 !important;
+  animation: ledPulse 1s infinite alternate;
+}
+
+@keyframes ledPulse {
+  0% {
+    opacity: 1;
+    box-shadow: 0 0 4px #ff4757;
+  }
+  100% {
+    opacity: 0.4;
+    box-shadow: 0 0 10px #ff4757;
+  }
+}
+
+/* Player Stat Counter Strip */
 .stat-strip {
   display: flex;
   gap: 10px;
@@ -205,6 +312,7 @@ select:focus-visible,
   line-height: 1;
 }
 
+/* Water Well Stat Component */
 .well-card {
   flex-direction: row;
   gap: 10px;
@@ -219,10 +327,12 @@ select:focus-visible,
   width: 48px;
   height: 48px;
 }
+
 .well-card:hover {
   background: #ffffff;
   transform: translateY(-2px);
 }
+
 .well-card:active {
   transform: translateY(1px);
 }
@@ -232,18 +342,22 @@ select:focus-visible,
   flex-direction: column;
   gap: 2px;
 }
+
 .well-name {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 1.15rem;
   line-height: 1;
 }
+
 .well-hint {
   font-size: 0.7rem;
   color: #3f5a6e;
 }
 
-/* ---------- Board ---------- */
+/* --------------------------------------------------------------------------
+   4. Game Board Three-Column Grid Layout
+   -------------------------------------------------------------------------- */
 .board {
   display: grid;
   grid-template-columns: 172px minmax(320px, 1fr) minmax(300px, 400px);
@@ -251,7 +365,9 @@ select:focus-visible,
   align-items: stretch;
 }
 
-/* Left column: season badge + rail */
+/* --------------------------------------------------------------------------
+   5. Left Column: Season Badge, Inventory & Tools
+   -------------------------------------------------------------------------- */
 .left-col {
   display: flex;
   flex-direction: column;
@@ -313,14 +429,6 @@ select:focus-visible,
   gap: 6px;
 }
 
-.bar-tools {
-  padding: 6px;
-  background: var(--rail-green);
-  border: 3px solid var(--ink);
-  border-radius: 12px;
-  margin: -2px -2px -2px 0;
-}
-
 .inventory-slots {
   display: flex;
   flex-direction: column;
@@ -328,7 +436,6 @@ select:focus-visible,
   height: 100%;
 }
 
-/* Inventory slots (class names kept for main.js) */
 .mc-slot {
   position: relative;
   width: 100%;
@@ -348,9 +455,11 @@ select:focus-visible,
   width: 62%;
   height: 62%;
 }
+
 .mc-slot.has-item {
   cursor: pointer;
 }
+
 .mc-slot.has-item:hover {
   background: #ffffff;
   transform: translateY(-1px);
@@ -383,7 +492,15 @@ select:focus-visible,
     -1px 1px 0 var(--ink);
 }
 
-/* Tool buttons */
+/* Tool Action Selection Column */
+.bar-tools {
+  padding: 6px;
+  background: var(--rail-green);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  margin: -2px -2px -2px 0;
+}
+
 .tool-btn {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -402,6 +519,7 @@ select:focus-visible,
   width: 66%;
   height: 66%;
 }
+
 .tool-btn:hover {
   background: #def8e2;
   transform: translateY(-1px);
@@ -413,7 +531,9 @@ select:focus-visible,
   box-shadow: 0 0 0 2px var(--ink);
 }
 
-/* Center column */
+/* --------------------------------------------------------------------------
+   6. Center Column: Soil Matrix Grid & Controls
+   -------------------------------------------------------------------------- */
 .garden-col {
   display: flex;
   flex-direction: column;
@@ -447,7 +567,7 @@ select:focus-visible,
   font-size: 1.1rem;
   background: var(--rose);
   border: 3px solid var(--ink);
-  border-top: 0; /* Attached smoothly underneath soil grid frame */
+  border-top: 0;
   border-radius: 0 0 14px 14px;
   transition:
     background-color 0.1s ease,
@@ -457,10 +577,12 @@ select:focus-visible,
 .end-day-btn:hover {
   background: var(--rose-deep);
 }
+
 .end-day-btn img {
   width: 26px;
   height: 26px;
 }
+
 .end-day-btn:active {
   transform: translateY(1px);
 }
@@ -471,7 +593,27 @@ select:focus-visible,
   color: #4a5a4c;
 }
 
-/* Soil grid */
+.action-banner-log {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #2f1d13;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: normal;
+  text-wrap: balance;
+  width: 100%;
+}
+
+/* 2D Array Soil Matrix Grid Assembly */
 .soil-matrix-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -486,6 +628,7 @@ select:focus-visible,
     border-color 0.3s ease;
 }
 
+/* Disaster Hazard Flash Animation */
 @keyframes disasterBlink {
   0%,
   100% {
@@ -505,6 +648,7 @@ select:focus-visible,
   animation: disasterBlink 0.6s ease-in-out infinite;
 }
 
+/* Individual Tile Rendering & State Modifiers */
 .soil-tile {
   position: relative;
   aspect-ratio: 1 / 1;
@@ -599,7 +743,9 @@ select:focus-visible,
     background-color 0.3s ease;
 }
 
-/* Right column */
+/* --------------------------------------------------------------------------
+   7. Right Column: Execution Log & Town Hub Panels
+   -------------------------------------------------------------------------- */
 .right-col {
   display: flex;
   flex-direction: column;
@@ -607,6 +753,7 @@ select:focus-visible,
   min-width: 0;
 }
 
+/* Python Terminal Log Console */
 .log-panel {
   padding: 12px;
   background: var(--butter);
@@ -637,8 +784,7 @@ select:focus-visible,
   border-radius: 12px;
 }
 
-/* Tabs: Quests / Shop / Sell */
-/* Tabs: Quests / Shop / Sell */
+/* Town Tabs Component (Quests / Shop / Sell) */
 .town {
   display: flex;
   flex-direction: column;
@@ -694,6 +840,13 @@ select:focus-visible,
   display: none !important;
 }
 
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
 #panel-quests.tab-panel {
   display: flex;
   flex-direction: row;
@@ -702,19 +855,13 @@ select:focus-visible,
   width: 100%;
 }
 
-.tab-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
+/* Wumbus NPC Quest HUD Component */
 .npc {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px; /* Tight vertical gap between info and Give button */
+  gap: 6px;
 }
 
 .npc-portrait {
@@ -801,10 +948,10 @@ select:focus-visible,
 .panel-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 2px; /* Tight distance right under the exp-track */
+  margin-top: 2px;
 }
 
-/* Buttons */
+/* Reusable Styled Action Buttons */
 .btn {
   padding: 6px 18px;
   display: inline-flex;
@@ -825,10 +972,12 @@ select:focus-visible,
   width: 18px;
   height: 18px;
 }
+
 .btn:hover {
   filter: brightness(1.06);
   transform: translateY(-1px);
 }
+
 .btn:active {
   transform: translateY(2px);
   box-shadow: 0 1px 0 rgba(42, 32, 24, 0.35);
@@ -837,14 +986,18 @@ select:focus-visible,
 .btn-green {
   background: var(--leaf-deep);
 }
+
 .btn-gold {
   background: #f5c04a;
 }
+
 .btn-purple {
   background: #cfb0f5;
 }
 
-/* ---------- Modals ---------- */
+/* --------------------------------------------------------------------------
+   8. Global Modal Overlay System
+   -------------------------------------------------------------------------- */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -876,9 +1029,11 @@ select:focus-visible,
 .modal-sm {
   max-width: 460px;
 }
+
 .modal-md {
   max-width: 640px;
 }
+
 .modal-lg {
   max-width: 900px;
 }
@@ -922,6 +1077,7 @@ select:focus-visible,
   width: 20px;
   height: 20px;
 }
+
 .modal-close:hover {
   background: #ffe1e1;
 }
@@ -930,6 +1086,7 @@ select:focus-visible,
   overflow-y: auto;
 }
 
+/* Game Mechanics & Rules Guide Modal */
 .rules {
   display: flex;
   flex-direction: column;
@@ -937,24 +1094,28 @@ select:focus-visible,
   font-size: 0.95rem;
   line-height: 1.5;
 }
+
 .rules p {
   margin: 0;
   display: flex;
   gap: 12px;
   align-items: flex-start;
 }
+
 .rules img {
   flex: none;
   width: 28px;
   height: 28px;
 }
 
+/* Python Code Inspector Modal */
 .code-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-height: 0;
 }
+
 .field-label {
   font-weight: 800;
   font-size: 0.85rem;
@@ -985,7 +1146,7 @@ select:focus-visible,
   border-radius: 12px;
 }
 
-/* Shop modal */
+/* Frog Seed Shop Modal */
 .shop-list {
   display: flex;
   flex-direction: column;
@@ -1008,19 +1169,23 @@ select:focus-visible,
   width: 36px;
   height: 36px;
 }
+
 .shop-item-text {
   flex: 1;
   min-width: 0;
 }
+
 .shop-item-name {
   font-weight: 800;
   font-size: 0.9rem;
 }
+
 .shop-item-desc {
   margin-top: 2px;
   font-size: 0.75rem;
   color: #5b564a;
 }
+
 .price-btn {
   flex: none;
   padding: 5px 12px;
@@ -1073,10 +1238,12 @@ select:focus-visible,
   gap: 8px;
   font-weight: 800;
 }
+
 .shop-crop-badge-left img {
   width: 24px;
   height: 24px;
 }
+
 .shop-crop-badge-right {
   display: flex;
   align-items: center;
@@ -1084,30 +1251,242 @@ select:focus-visible,
   font-size: 0.78rem;
   color: #4a4a40;
 }
+
 .shop-crop-badge-right .days {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
+
 .shop-crop-badge-right .days img {
   width: 14px;
   height: 14px;
 }
 
+/* Item Rarity Text Modifiers */
 .rarity-common {
   color: #5f6670;
   font-weight: 800;
 }
+
 .rarity-uncommon {
   color: #1f6fb5;
   font-weight: 800;
 }
+
 .rarity-rare {
   color: #8a3fc4;
   font-weight: 800;
 }
 
-/* ---------- Responsive ---------- */
+/* --------------------------------------------------------------------------
+   9. Weather Channel 30-Day BST Forecast Modal
+   -------------------------------------------------------------------------- */
+.forecast-modal-theme {
+  background-color: #dbebe2;
+  border: 3px solid #2a2018;
+  border-radius: 20px;
+  max-width: 620px;
+  width: 95%;
+  max-height: 85vh;
+  padding: 16px;
+  box-shadow: 0 10px 0 rgba(42, 32, 24, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.forecast-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tv-modal-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.modal-title-text h2 {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #2a2018;
+  line-height: 1.1;
+}
+
+.modal-subtitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #557766;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.modal-close-btn img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.modal-body-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Tomorrow Forecast Radar Card */
+.forecast-radar-card {
+  background: #ffffff;
+  border: 2px solid #2a2018;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.radar-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.radar-tag {
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: #2a2018;
+  letter-spacing: 0.5px;
+}
+
+.risk-badge {
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 2px solid #2a2018;
+}
+
+.risk-badge.risk-safe {
+  background: #9ee8b2;
+  color: #1a4a2a;
+}
+
+.risk-badge.risk-danger {
+  background: #fba1a1;
+  color: #6a1a1a;
+}
+
+.radar-dialogue {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #333333;
+  font-style: italic;
+  margin: 0;
+}
+
+/* 30-Day BST In-Order Traversal Calendar Grid */
+.calendar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.calendar-title {
+  font-weight: 900;
+  font-size: 0.9rem;
+  color: #2a2018;
+}
+
+.dsa-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: #ffffff;
+  border: 1px solid #2a2018;
+  padding: 2px 8px;
+  border-radius: 8px;
+  color: #555555;
+}
+
+.forecast-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  background-color: #c0ded0;
+  border: 2px solid #2a2018;
+  border-radius: 14px;
+  padding: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.forecast-day-card {
+  background-color: #ffffff;
+  border: 2px solid #2a2018;
+  border-radius: 10px;
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  text-align: center;
+  min-height: 60px;
+  transition: transform 0.1s ease;
+}
+
+.forecast-day-card:hover {
+  transform: scale(1.05);
+}
+
+.forecast-day-card.active-today {
+  background-color: #fded96;
+}
+
+.forecast-day-card.danger-day {
+  background-color: #fba1a1;
+}
+
+.forecast-day-card .day-num {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: #2a2018;
+}
+
+.forecast-day-card .day-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.forecast-day-card .day-status {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #444444;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   10. Responsive Layout Media Queries & Accessibility Reductions
+   -------------------------------------------------------------------------- */
 @media (max-width: 960px) {
   .board {
     grid-template-columns: 1fr;
@@ -1116,9 +1495,11 @@ select:focus-visible,
   .left-col {
     order: 1;
   }
+
   .garden-col {
     order: 2;
   }
+
   .right-col {
     order: 3;
   }
@@ -1130,17 +1511,21 @@ select:focus-visible,
   .bar {
     flex-direction: row;
   }
+
   .inventory-slots {
     flex-direction: row;
     height: auto;
   }
+
   .inventory-slots .mc-slot {
     flex: 1;
     width: auto;
   }
+
   .bar-tools {
     margin: 0;
   }
+
   .bar-tools .tool-btn {
     flex: 1;
     width: auto;
@@ -1151,52 +1536,41 @@ select:focus-visible,
   body {
     padding: 10px;
   }
+
   .app {
     padding: 12px;
   }
+
   .stat-strip {
     width: 100%;
     flex-wrap: wrap;
   }
+
   .stat-card {
     flex: 1;
     min-width: 80px;
   }
+
   .well-card {
     flex-basis: 100%;
     justify-content: center;
   }
 }
 
+/* Accessibility: Motion Preference Handling */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     transition: none !important;
   }
+
   .soil-matrix-grid.disaster-blink {
     animation: none;
     border-color: #ef4444;
   }
-}
 
-/* Horizontal Action Log Banner above Soil Grid */
-.action-banner-log {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end; /* Right-aligns log text */
-  text-align: right;
-  border: none;
-  background: transparent;
-  padding: 2px 4px;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #2f1d13; /* Ink color matching frame */
-  line-height: 1.25;
-  white-space: normal;
-  word-break: normal;
-  text-wrap: balance; /* Dynamic word balancing */
-  width: 100%;
+  .tv-power-led.has-danger {
+    animation: none;
+  }
 }
