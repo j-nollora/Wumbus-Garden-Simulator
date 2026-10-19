@@ -72,10 +72,10 @@ async function initPyodideEngine() {
 
         // Execute script inside Pyodide WASM global environment
         await window.pyodideInstance.runPythonAsync(text);
-        console.log(`✅ Loaded Python module: ${file}`);
+        console.log(`Loaded Python module: ${file}`);
       } catch (fileErr) {
         console.error(
-          `❌ Python Syntax/Runtime Error inside '${file}':`,
+          `Python Syntax/Runtime Error inside '${file}':`,
           fileErr
         );
       }
@@ -108,10 +108,41 @@ async function initPyodideEngine() {
             "crop_key": "parsnip"
         })`);
 
+    // Emit Python Execution Trace Log for Pyodide Engine & DSA Instantiation
+    if (typeof window.logPythonTrace === "function") {
+      window.logPythonTrace("Pyodide Engine Loaded & System DSA Initialized", [
+        {
+          file: "matrix_grid.py",
+          fn: "SoilMatrixGrid(5, 5)",
+          dsa: "2D Array / Matrix Initialization",
+        },
+        {
+          file: "stack.py",
+          fn: "ActionStack()",
+          dsa: "LIFO Action Memory Stack",
+        },
+        {
+          file: "queue.py",
+          fn: "EnvironmentQueue()",
+          dsa: "FIFO Climate & Disaster Queue",
+        },
+        {
+          file: "hierarchical_tree_and_traversals.py",
+          fn: "QuestProgressionTree()",
+          dsa: "N-ary Quest Hierarchy Tree",
+        },
+        {
+          file: "hash.py",
+          fn: "InventoryHashTable()",
+          dsa: "Linear Probing Hash Table",
+        },
+      ]);
+    }
+
     // Log initialization status to the user interface console banner
     if (consoleEl) {
       consoleEl.textContent =
-        "✅ Pyodide WASM Engine initialized!\nReady for actions. Purchase seeds in the Frog Shop!";
+        "Pyodide engine ready. View Mechanics.";
     }
 
     // Trigger UI synchronization hooks upon engine readiness
@@ -120,7 +151,7 @@ async function initPyodideEngine() {
   } catch (err) {
     console.error("Pyodide Initialization Failed:", err);
     if (consoleEl) {
-      consoleEl.textContent = `❌ Pyodide Engine Failed to load: ${err.message}`;
+      consoleEl.textContent = `Pyodide Engine Failed to load: ${err.message}`;
     }
   }
 }

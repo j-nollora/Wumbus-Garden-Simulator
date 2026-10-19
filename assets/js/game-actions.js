@@ -56,6 +56,9 @@ function cropImg(name, cls = "", alt = "") {
  * Requires the Watering Can tool to be equipped and consumes 10 Energy units.
  */
 function refillWaterAtWell() {
+
+  beginActionTrace("Well Interaction");
+
   if (activeTool !== "water") {
     logConsole("Equip watering can first.");
     return;
@@ -75,19 +78,21 @@ function refillWaterAtWell() {
   logConsole(`Successfully refilled watering can(-${WELL_ENERGY_COST} Energy)`);
   updateStatusUI();
 
-  // Log DSA execution trace for well refill action
-  logPythonTrace("Refilled Water Can at Well", [
-    {
-      file: "matrix_grid.py",
-      fn: "grid.bucket_level = max_bucket",
-      dsa: "Direct Attribute Mutation",
-    },
-    {
-      file: "hierarchical_tree_and_traversals.py",
-      fn: "quest_tree.get_max_bucket()",
-      dsa: "Dynamic Level Threshold Calculation",
-    },
-  ]);
+  // Log DSA execution trace for well refill 
+  if (typeof window.logPythonTrace === "function") {
+        window.logPythonTrace("Refilled Water Can at Well", [
+      {
+        file: "matrix_grid.py",
+        fn: "grid.bucket_level = max_bucket",
+        dsa: "Direct Attribute Mutation",
+      },
+      {
+        file: "hierarchical_tree_and_traversals.py",
+        fn: "quest_tree.get_max_bucket()",
+        dsa: "Dynamic Level Threshold Calculation",
+      },
+    ]);
+  }
 }
 
 /* ==========================================================================
@@ -98,12 +103,14 @@ function refillWaterAtWell() {
  * Main tile interaction handler invoked when a user clicks or presses Enter on a grid tile.
  * Evaluates active tool AOE range and iterates across tile bounding boxes `[r, r+aoe]` x `[c, c+aoe]`.
  *
- * @param {number} r - Base grid row index (0 to 4).
- * @param {number} c - Base grid column index (0 to 4).
+ * @param {number} r grid row index (0 to 4).
+ * @param {number} c grid column index (0 to 4).
  */
 function handleTileClick(r, c) {
   if (!pyReady()) return;
 
+  beginActionTrace(`Tile Interaction [${r}, ${c}]`);
+  
   if (userEnergy < ENERGY_PER_ACTION) {
     logConsole("Error: out of energy! Click End Day to recover.");
     return;
@@ -131,6 +138,22 @@ function handleTileClick(r, c) {
     userEnergy -= ENERGY_PER_ACTION;
     syncBucketToPython();
     updateStatusUI();
+
+    // Log DSA execution trace for AOE matrix traversal action
+    if (typeof window.logPythonTrace === "function") {
+      window.logPythonTrace(`Executed ${activeTool.toUpperCase()} Action (AOE: ${aoe}x${aoe})`, [
+        {
+          file: "hierarchical_tree_and_traversals.py",
+          fn: "quest_tree.get_aoe_range()",
+          dsa: "N-ary Tree Attribute Lookup",
+        },
+        {
+          file: "matrix_grid.py",
+          fn: `grid.get_tile(${r}, ${c})`,
+          dsa: "2D Array Sub-grid Iteration / Bounding Box Traversal",
+        },
+      ]);
+    }
   }
   window.syncPythonToUI();
 }
@@ -144,34 +167,55 @@ function handleTileClick(r, c) {
  * @returns {boolean} True if tool operation succeeded and mutated tile state.
  */
 function executeToolOnTile(r, c) {
+
   /* ----------------------------------------------------------------------
      TOOL 1: HOE (Till Raw Soil into Farmable Plot)
      ---------------------------------------------------------------------- */
   if (activeTool === "hoe") {
     const currentWeather = window.runPython(
-      `environment_queue.get_current_weather() if 'environment_queue' in globals() else "Sunny"`,
+      `environment_queue.get_current_weather() if 'environment_queue' in globals() else "Sunny"`
     );
     const ok = window.runPython(
-      `grid.till_soil(${r}, ${c}, "${currentWeather}")`,
+      `grid.till_soil(${r}, ${c}, "${currentWeather}")`
     );
 
     if (ok) {
+      const isRainy = currentWeather === "Rainy";
+
       logConsole(
-        `Tilled Soil at [${r}, ${c}]${currentWeather === "Rainy" ? " (Auto-watered by Rain!)" : ""}`,
+        `Tilled Soil at [${r}, ${c}]${isRainy ? " (Auto-watered by Rain!)" : ""}`
       );
 
-      logPythonTrace("Till Soil Action", [
-        {
-          file: "matrix_grid.py",
-          fn: "grid.till_soil(r, c, weather)",
-          dsa: "2D Array Indexing O(1)",
-        },
-        {
+      // Log DSA execution trace for direct matrix mutation, weather lookup, and action stack push
+      if (typeof window.logPythonTrace === "function") {
+        const traceCalls = [
+          {
+            file: "matrix_grid.py",
+            fn: "grid.till_soil(r, c, weather)",
+            dsa: "2D Array Indexing & Tile State Mutation O(1)",
+          },
+        ];
+
+        // Include weather queue inspection and auto-water state mutation when rainy
+        if (isRainy) {
+          traceCalls.unshift({
+            file: "queue.py",
+            fn: "environment_queue.get_current_weather()",
+            dsa: "FIFO Queue Head Inspection",
+          });
+        }
+
+        traceCalls.push({
           file: "stack.py",
           fn: "stack.push(action_dict)",
           dsa: "LIFO Stack Action Push",
-        },
-      ]);
+        });
+
+        window.logPythonTrace(
+          `Till Soil Action${isRainy ? " (Rain Auto-Water)" : ""}`,
+          traceCalls
+        );
+      }
 
       if (window.syncPythonToUI) window.syncPythonToUI();
       return true;
@@ -225,18 +269,21 @@ function executeToolOnTile(r, c) {
 
       logConsole(`Watered tile [${r}, ${c}] (-1L Water)`);
 
-      logPythonTrace("Water Soil Action", [
-        {
-          file: "matrix_grid.py",
-          fn: "grid.water_soil(r, c)",
-          dsa: "2D Matrix Tile State Mutation",
-        },
-        {
-          file: "stack.py",
-          fn: "stack.push(action_dict)",
-          dsa: "LIFO Stack Action Push",
-        },
-      ]);
+      // Log DSA execution trace for direct matrix mutation and action stack push
+      if (typeof window.logPythonTrace === "function") {
+        window.logPythonTrace("Water Soil Action", [
+          {
+            file: "matrix_grid.py",
+            fn: "grid.water_soil(r, c)",
+            dsa: "2D Matrix Tile State Mutation",
+          },
+          {
+            file: "stack.py",
+            fn: "stack.push(action_dict)",
+            dsa: "LIFO Stack Action Push",
+          },
+        ]);
+      }
 
       if (window.syncPythonToUI) window.syncPythonToUI();
       return true;
@@ -290,23 +337,26 @@ function executeToolOnTile(r, c) {
       consumeItem(selectedInventoryKey);
       logConsole(`Planted ${cropKey} at tile [${r}, ${c}]`);
 
-      logPythonTrace("Planted Seed Action", [
-        {
-          file: "oop_concepts.py",
-          fn: "CROP_DATABASE.get(cropKey)",
-          dsa: "Dictionary Key Lookup",
-        },
-        {
-          file: "matrix_grid.py",
-          fn: "grid.plant_seed(r, c, crop)",
-          dsa: "2D Matrix Tile Object Insertion",
-        },
-        {
-          file: "stack.py",
-          fn: "stack.push(action_dict)",
-          dsa: "LIFO Stack Action Push",
-        },
-      ]);
+      // Log DSA execution trace for crop lookup, matrix insertion, and action stack push
+      if (typeof window.logPythonTrace === "function") {
+        window.logPythonTrace("Planted Seed Action", [
+          {
+            file: "oop_concepts.py",
+            fn: "CROP_DATABASE.get(cropKey)",
+            dsa: "Dictionary Key Lookup",
+          },
+          {
+            file: "matrix_grid.py",
+            fn: "grid.plant_seed(r, c, crop)",
+            dsa: "2D Matrix Tile Object Insertion",
+          },
+          {
+            file: "stack.py",
+            fn: "stack.push(action_dict)",
+            dsa: "LIFO Stack Action Push",
+          },
+        ]);
+      }
 
       clearSelectionIfEmpty();
       if (window.syncPythonToUI) window.syncPythonToUI();
@@ -362,18 +412,20 @@ function executeToolOnTile(r, c) {
       consumeItem(selectedInventoryKey);
       logConsole(`Applied fertilizer defense shield to tile [${r}, ${c}]!`);
 
-      logPythonTrace("Applied Fertilizer Defense Shield", [
-        {
-          file: "matrix_grid.py",
-          fn: "grid.apply_fertilizer(r, c)",
-          dsa: "Tile Attribute Shield Mutation",
-        },
-        {
-          file: "stack.py",
-          fn: "stack.push(action_dict)",
-          dsa: "LIFO Stack Action Push",
-        },
-      ]);
+      if (typeof window.logPythonTrace === "function") {
+        window.logPythonTrace("Applied Fertilizer Defense Shield", [
+          {
+            file: "matrix_grid.py",
+            fn: "grid.apply_fertilizer(r, c)",
+            dsa: "Tile Attribute Shield Mutation",
+          },
+          {
+            file: "stack.py",
+            fn: "stack.push(action_dict)",
+            dsa: "LIFO Stack Action Push",
+          },
+        ]);
+      }
 
       clearSelectionIfEmpty();
       if (window.syncPythonToUI) window.syncPythonToUI();
@@ -418,23 +470,26 @@ function executeToolOnTile(r, c) {
 
       logConsole(`Harvested 1x ${result.name} from tile [${r}, ${c}]!`);
 
-      logPythonTrace("Harvest Crop Action", [
-        {
-          file: "matrix_grid.py",
-          fn: "grid.harvest_crop(r, c)",
-          dsa: "2D Array State Reset",
-        },
-        {
-          file: "hash.py",
-          fn: "inventory_hash.add(crop_name, item)",
-          dsa: "Linear Probing Hash Table Insertion",
-        },
-        {
-          file: "stack.py",
-          fn: "stack.push(action_dict)",
-          dsa: "LIFO Stack Action Push",
-        },
-      ]);
+      // Log DSA execution trace for harvest matrix mutation, hash table insertion, and stack push
+      if (typeof window.logPythonTrace === "function") {
+        window.logPythonTrace(`Harvested ${result.name} Crop`, [
+          {
+            file: "matrix_grid.py",
+            fn: "grid.harvest_crop(r, c, weather)",
+            dsa: "2D Matrix Tile State Reset",
+          },
+          {
+            file: "hash.py",
+            fn: `inventory_hash.add("${result.name}", ...)`,
+            dsa: "Linear Probing Hash Table Insertion O(1)",
+          },
+          {
+            file: "stack.py",
+            fn: "stack.push(action_dict)",
+            dsa: "LIFO Stack Action Push",
+          },
+        ]);
+      }
 
       if (typeof renderMinecraftHotbar === "function") renderMinecraftHotbar();
       if (window.syncPythonToUI) window.syncPythonToUI();
@@ -475,18 +530,21 @@ function executeToolOnTile(r, c) {
 
     logConsole(`Cleared ${removedName} from tile [${r}, ${c}]!`);
 
-    logPythonTrace("Shovel (Looping Stack Pop)", [
-      {
-        file: "matrix_grid.py",
-        fn: "grid.shovel_clear_tile(r, c, stack)",
-        dsa: "2D Matrix Tile State Reversion",
-      },
-      {
-        file: "stack.py",
-        fn: "stack.pop_tile_actions(r, c)",
-        dsa: "LIFO Stack Looping Pop Traversal",
-      },
-    ]);
+    // Log DSA execution trace for matrix reversion and looping stack cleanup
+    if (typeof window.logPythonTrace === "function") {
+      window.logPythonTrace("Shovel (Looping Stack Pop)", [
+        {
+          file: "matrix_grid.py",
+          fn: "grid.shovel_clear_tile(r, c, stack)",
+          dsa: "2D Matrix Tile State Reversion",
+        },
+        {
+          file: "stack.py",
+          fn: "stack.pop_tile_actions(r, c)",
+          dsa: "LIFO Stack Looping Pop Traversal",
+        },
+      ]);
+    }
 
     if (window.syncPythonToUI) window.syncPythonToUI();
     return true;
@@ -506,6 +564,8 @@ function executeToolOnTile(r, c) {
  */
 function advanceNextDay() {
   if (!pyReady()) return;
+
+  beginActionTrace(`Day Skip`);
 
   const night = pyJson(`
 import json
@@ -532,18 +592,20 @@ json.dumps({"disaster": _disaster, "name": _name})
     logConsole(
       `NIGHT DISASTER ALERT: A severe ${night.name} struck your field! Shielded crops absorbed damage!`,
     );
-    logPythonTrace(`Night Disaster: ${night.name}`, [
-      {
-        file: "queue.py",
-        fn: "environment_queue.advance_day(grid)",
-        dsa: "FIFO Queue Event Roll",
-      },
-      {
-        file: "matrix_grid.py",
-        fn: "grid.process_day_transition(season, weather, disaster)",
-        dsa: "2D Matrix Grid Traversal O(R*C)",
-      },
-    ]);
+    if (typeof window.logPythonTrace === "function") {
+      window.logPythonTrace(`Night Disaster: ${night.name}`, [
+        {
+          file: "queue.py",
+          fn: "environment_queue.advance_day(grid)",
+          dsa: "FIFO Queue Event Roll",
+        },
+        {
+          file: "matrix_grid.py",
+          fn: "grid.process_day_transition(season, weather, disaster)",
+          dsa: "2D Matrix Grid Traversal O(R*C)",
+        },
+      ]);
+    } 
 
     if (gridEl) {
       gridEl.classList.add("disaster-blink");
@@ -553,18 +615,20 @@ json.dumps({"disaster": _disaster, "name": _name})
     logConsole(
       "Advanced to Next Day! Energy restored. Unwatered or out-of-season crops wilted!",
     );
-    logPythonTrace("Advanced Day Transition", [
-      {
-        file: "queue.py",
-        fn: "environment_queue.advance_day(grid)",
-        dsa: "FIFO Queue Advancement",
-      },
-      {
-        file: "matrix_grid.py",
-        fn: "grid.process_day_transition(season, weather)",
-        dsa: "2D Matrix Traversal O(R*C)",
-      },
-    ]);
+    if (typeof window.logPythonTrace === "function") {
+      window.logPythonTrace("Advanced Day Transition", [
+        {
+          file: "queue.py",
+          fn: "environment_queue.advance_day(grid)",
+          dsa: "FIFO Queue Advancement",
+        },
+        {
+          file: "matrix_grid.py",
+          fn: "grid.process_day_transition(season, weather)",
+          dsa: "2D Matrix Traversal O(R*C)",
+        },
+      ]);
+    }
   }
 
   // Refresh Weather Channel radar for tomorrow's forecast

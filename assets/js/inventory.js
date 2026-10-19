@@ -147,7 +147,20 @@ function getInventoryCount(key) {
  * @param {string} key - Item key name.
  */
 function consumeItem(key) {
+  if (!pyReady() || !key) return;
+
   py(`inventory_hash.consume(${pyStr(key)})`);
+
+  // Log DSA execution trace for Hash Table mutation
+  if (typeof window.logPythonTrace === "function") {
+    window.logPythonTrace("Consumed Inventory Item", [
+      {
+        file: "hash.py",
+        fn: `inventory_hash.consume("${key}")`,
+        dsa: "Linear Probing Hash Table Deletion / Decrement O(1)",
+      },
+    ]);
+  }
 }
 
 /**

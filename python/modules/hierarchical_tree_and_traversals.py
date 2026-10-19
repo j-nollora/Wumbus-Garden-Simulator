@@ -261,6 +261,21 @@ class QuestProgressionTree:
         target = self.level_thresholds.get(self.current_node.level, 0)
         return target if target > 0 else "MAX"
 
+    @property
+    def current_level(self):
+        """
+        Returns the active player level rank from the current node pointer.
+        """
+        return self.current_node.level if self.current_node else 1
+
+    def get_current_perk_description(self):
+        """
+        Queries the active `current_node` for the unlocked perk description string.
+        """
+        if not self.current_node:
+            return "Starter Gear (1x1 Tool Range, 5L Water Can)"
+        return getattr(self.current_node, 'perk_description', "Starter Gear (1x1 Tool Range, 5L Water Can)")
+
     def get_current_req(self, season="Spring"):
         """
         Queries the active `current_node` for required crop name and quantity.

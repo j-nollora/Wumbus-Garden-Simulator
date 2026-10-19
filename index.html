@@ -25,30 +25,33 @@
             <!-- Brand Logo & Title -->
             <div class="brand">
                 <img class="brand-logo" src="https://stardewvalleywiki.com/mediawiki/images/b/b8/Golden_Scroll.png" alt="Golden Scroll Logo">
+                
                 <div class="brand-text">
                     <h1>Wumbus' Garden</h1>
-                    <span class="version">v0.0.0</span>
+                    <span class="version">v0.7.0</span>
                 </div>
+
+                    <!-- Round Quick-Action Menu Buttons (Mechanics Guide & Python Code Viewer) -->
+                <div class="menu-buttons">
+                    <button type="button" class="round-btn" onclick="openModal('mechanics-modal')" title="Mechanics Guide" aria-label="Mechanics Guide">
+                        <img src="https://stardewvalleywiki.com/mediawiki/images/d/df/Book_of_Mysteries.png" alt="Book of Mysteries Icon">
+                    </button>
+                    <button type="button" class="round-btn" onclick="openModal('code-modal')" title="Module Reference" aria-label="Module Reference">
+                        <img src="https://stardewvalleywiki.com/mediawiki/images/1/15/Monster_Compendium.png" alt="Monster Compendium Icon">
+                    </button>
+                </div>
+
+                <!-- Weather Channel TV Set Trigger Button (Opens 30-Day BST Forecast Modal) -->
+                <button class="tv-set-btn" type="button" id="tv-forecast-btn" title="Weather Channel (30-Day Forecast)" onclick="openForecastModal()">
+                    <div class="tv-screen">
+                        <img id="tv-screen-gif" src="https://stardewvalleywiki.com/mediawiki/images/8/8a/LuckStarMax.gif" alt="Weather Channel TV Screen" />
+                    </div>
+                    <!-- Top-Right Red/Green LED Alert Indicator Dot -->
+                    <span id="tv-alert-dot" class="tv-power-led"></span>
+                </button>
             </div>
 
-            <!-- Round Quick-Action Menu Buttons (Mechanics Guide & Python Code Viewer) -->
-            <div class="menu-buttons">
-                <button type="button" class="round-btn" onclick="openModal('mechanics-modal')" title="Mechanics Guide" aria-label="Mechanics Guide">
-                    <img src="https://stardewvalleywiki.com/mediawiki/images/d/df/Book_of_Mysteries.png" alt="Book of Mysteries Icon">
-                </button>
-                <button type="button" class="round-btn" onclick="openModal('code-modal')" title="Module Reference" aria-label="Module Reference">
-                    <img src="https://stardewvalleywiki.com/mediawiki/images/1/15/Monster_Compendium.png" alt="Monster Compendium Icon">
-                </button>
-            </div>
 
-            <!-- Weather Channel TV Set Trigger Button (Opens 30-Day BST Forecast Modal) -->
-            <button class="tv-set-btn" type="button" id="tv-forecast-btn" title="Weather Channel (30-Day Forecast)" onclick="openForecastModal()">
-                <div class="tv-screen">
-                    <img id="tv-screen-gif" src="https://stardewvalleywiki.com/mediawiki/images/8/8a/LuckStarMax.gif" alt="Weather Channel TV Screen" />
-                </div>
-                <!-- Top-Right Red/Green LED Alert Indicator Dot -->
-                <span id="tv-alert-dot" class="tv-power-led"></span>
-            </button>
 
             <!-- Player Resource Bar (Well / Water Bucket / Energy / Coins) -->
             <div class="stat-strip">

@@ -64,6 +64,31 @@ function onPyodideReady() {
   checkDisasterForecast();
 
   logConsole("Python engine ready. View Mechanics.");
+  // Log the Pyodide WASM Engine & Core DSA Bootstrap
+  if (typeof window.logPythonTrace === "function") {
+    window.logPythonTrace("Initialize Engine & Data Structures", [
+      {
+        file: "oop_concepts.py",
+        fn: "CROP_DATABASE Registry Loaded",
+        dsa: "O(1) Hash Table Lookup Ready"
+      },
+      {
+        file: "matrix_grid.py",
+        fn: "SoilMatrixGrid(rows=5, cols=5)",
+        dsa: "2D Matrix Array Instantiation O(R*C)"
+      },
+      {
+        file: "stack.py",
+        fn: "ActionStack.__init__()",
+        dsa: "LIFO Action History Stack Initialized"
+      },
+      {
+        file: "queue.py",
+        fn: "EnvironmentQueue.__init__()",
+        dsa: "FIFO Climate Queue & 30-Day BST Seeded"
+      }
+    ]);
+  }
 }
 window.onPyodideReady = onPyodideReady;
 
@@ -175,6 +200,7 @@ function updateStatusUI() {
       : 0;
   const bar = document.getElementById("frog-exp-bar");
   if (bar) bar.style.width = `${expPercent}%`;
+
 }
 window.updateStatsUI = updateStatusUI;
 
@@ -207,9 +233,10 @@ function setTool(toolName, silent = false) {
 /**
  * Switches the right panel town view between Quests, Shop, and Sell tabs,
  * updating ARIA accessibility attributes and triggering DSA execution traces.
- * @param {string} name - Tab name ('quests', 'shop', or 'sell').
+ * @param {string} name Tab name ('quests', 'shop', or 'sell').
  */
 function switchTab(name) {
+  beginActionTrace("Tab Switched");
   ["quests", "shop", "sell"].forEach((t) => {
     const tab = document.getElementById(`tab-${t}`);
     const panel = document.getElementById(`panel-${t}`);
@@ -230,36 +257,38 @@ function switchTab(name) {
     }
   });
 
-  // Log Data Structure and Algorithm (DSA) function call traces upon tab navigation
-  if (name === "quests") {
-    logPythonTrace("Opened Quests View", [
-      {
-        file: "hierarchical_tree_and_traversals.py",
-        fn: "quest_tree.get_current_quest_desc()",
-        dsa: "Tree Pointer Traversal",
-      },
-    ]);
-  } else if (name === "shop") {
-    logPythonTrace("Opened Shop View", [
-      {
-        file: "queue.py",
-        fn: "environment_queue.get_current_season()",
-        dsa: "FIFO Queue Inspection",
-      },
-      {
-        file: "oop_concepts.py",
-        fn: "CROP_DATABASE.values()",
-        dsa: "Static Registry Iteration",
-      },
-    ]);
-  } else if (name === "sell") {
-    logPythonTrace("Opened Sell View", [
-      {
-        file: "hash.py",
-        fn: "inventory_hash.to_list()",
-        dsa: "Hash Table Array Serialization",
-      },
-    ]);
+  // Safe execution trace log emission upon tab navigation
+  if (typeof window.logPythonTrace === "function") {
+    if (name === "quests") {
+      logPythonTrace("Opened Quests View", [
+        {
+          file: "hierarchical_tree_and_traversals.py",
+          fn: "quest_tree.get_current_quest_desc()",
+          dsa: "Tree Pointer Traversal",
+        },
+      ]);
+    } else if (name === "shop") {
+      logPythonTrace("Opened Shop View", [
+        {
+          file: "queue.py",
+          fn: "environment_queue.get_current_season()",
+          dsa: "FIFO Queue Inspection",
+        },
+        {
+          file: "oop_concepts.py",
+          fn: "CROP_DATABASE.values()",
+          dsa: "Static Registry Iteration",
+        },
+      ]);
+    } else if (name === "sell") {
+      logPythonTrace("Opened Sell View", [
+        {
+          file: "hash.py",
+          fn: "inventory_hash.to_list()",
+          dsa: "Hash Table Array Serialization",
+        },
+      ]);
+    }
   }
 }
 
@@ -279,42 +308,81 @@ function logConsole(msg) {
 }
 window.logConsole = logConsole;
 
+// Unique identifier tracking the current user action cycle
+let currentActionId = null;
+
 /**
- * Dynamically records and renders Python function traces for the latest triggered action,
- * clearing the previous trace content on every new action (similar to Ctrl+L in terminals).
- * @param {string} actionTitle - Name of the action (e.g., "Till Soil Action").
- * @param {Array<{fn: string, file: string, dsa: string}>} calls - List of executed Python functions.
+ * Starts a fresh action trace session, clearing logs from past actions.
+ * Call this at the start of top-level user event handlers.
+ * @param {string} actionTitle - Name of the action header (e.g., "Till Soil Action").
  */
-function logPythonTrace(actionTitle, calls) {
+function beginActionTrace(actionTitle) {
+  currentActionId = Symbol(actionTitle);
   const traceBox = document.getElementById("trace-console");
   if (!traceBox) return;
 
-  let traceHTML = `<div style="color: #f59e0b; font-weight: bold; margin-bottom: 4px; border-bottom: 1px dashed rgba(245, 158, 11, 0.4); padding-bottom: 2px;">[ACTION]: ${escapeHtml(actionTitle)}</div>`;
-  traceHTML += `<div style="font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.5; padding-left: 4px;">`;
+  // Clear previous action traces and set up scrollable container header
+  traceBox.style.overflowY = "auto";
+  traceBox.style.maxHeight = "100%"; // or fixed px height, e.g., "240px"
+  traceBox.innerHTML = `
+    <div style="color: #f59e0b; font-weight: bold; margin-bottom: 6px; border-bottom: 1px dashed rgba(245, 158, 11, 0.4); padding-bottom: 2px; sticky; top: 0; z-index: 2;">
+      [ACTION]: ${escapeHtml(actionTitle)}
+    </div>
+    <div id="trace-cards-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+  `;
+}
+window.beginActionTrace = beginActionTrace;
+
+/**
+ * Appends Python function execution traces to the active action batch.
+ * If called without prior beginActionTrace, it automatically starts a new batch.
+ *
+ * @param {string} traceName - Sub-action or DSA trace title.
+ * @param {Array<{fn: string, file: string, dsa: string}>} calls - List of executed Python calls.
+ */
+function logPythonTrace(traceName, calls) {
+  const traceBox = document.getElementById("trace-console");
+  if (!traceBox) return;
+
+  let container = document.getElementById("trace-cards-container");
+
+  // Fallback: If no action session is active, start a new one automatically
+  if (!container || !currentActionId) {
+    beginActionTrace(traceName);
+    container = document.getElementById("trace-cards-container");
+  }
+
+  // Construct trace card HTML for this specific call batch
+  let cardHTML = `
+    <div class="trace-card" style="font-family: var(--font-mono, monospace); font-size: 0.75rem; line-height: 1.5; padding: 6px; border-radius: 4px; border-left: 3px solid #38bdf8;">
+      <div style="color: #38bdf8; font-weight: 600; margin-bottom: 4px;">▸ ${escapeHtml(traceName)}</div>
+  `;
 
   calls.forEach((call) => {
-    traceHTML += `
-            <div style="color: #a7f3d0; margin-bottom: 1px;">
-                ⌂ &nbsp;${escapeHtml(call.file)}
-            </div>
-            <div style="color: #fef08a; padding-left: 12px; margin-bottom: 1px;">
-                ▸ &nbsp;${escapeHtml(call.fn)}
-            </div>
-            ${
-              call.dsa
-                ? `
-            <div style="color: #cbd5e1; padding-left: 24px; margin-bottom: 4px;">
-                ⊛ &nbsp;${escapeHtml(call.dsa)}
-            </div>`
-                : ""
-            }
-        `;
+    cardHTML += `
+      <div style="color: #a7f3d0; margin-bottom: 1px;">
+          ⌂ &nbsp;${escapeHtml(call.file)}
+      </div>
+      <div style="color: #fef08a; padding-left: 12px; margin-bottom: 1px;">
+          ▸ &nbsp;${escapeHtml(call.fn)}
+      </div>
+      ${
+        call.dsa
+          ? `<div style="color: #cbd5e1; padding-left: 24px; margin-bottom: 2px;">
+              ⊛ &nbsp;${escapeHtml(call.dsa)}
+             </div>`
+          : ""
+      }
+    `;
   });
 
-  traceHTML += `</div>`;
+  cardHTML += `</div>`;
 
-  // Replaces previous trace panel contents with current action execution trace
-  traceBox.innerHTML = traceHTML;
+  // Append new card and auto-scroll to the bottom of the trace box
+  if (container) {
+    container.insertAdjacentHTML("beforeend", cardHTML);
+    traceBox.scrollTop = traceBox.scrollHeight;
+  }
 }
 window.logPythonTrace = logPythonTrace;
 
@@ -350,9 +418,34 @@ window.switchLogTab = switchLogTab;
  * Opens a modal dialog by ID and initializes modal content if needed.
  * @param {string} id - Target DOM element ID of modal overlay.
  */
+
 function openModal(id) {
-  if (id === "shop-modal") renderShopSeasonalCrops();
-  if (id === "code-modal") updateCodeViewer();
+
+  beginActionTrace("Opened a Modal");
+  if (id === "shop-modal") {
+    renderShopSeasonalCrops();
+
+    // Log Python WASM execution trace for opening the Shop
+    if (typeof window.logPythonTrace === "function") {
+      window.logPythonTrace("Open Frog Shop Catalog", [
+        {
+          file: "queue.py",
+          fn: "environment_queue.get_current_season()",
+          dsa: "FIFO Climate Queue Inspection O(1)"
+        },
+        {
+          file: "oop_concepts.py",
+          fn: "CROP_DATABASE.values()",
+          dsa: "O(1) Hash Registry Iteration"
+        }
+      ]);
+    }
+  }
+
+  if (id === "code-modal") {
+    updateCodeViewer();
+  }
+
   const modal = document.getElementById(id);
   if (modal) modal.classList.add("active");
 }
@@ -471,6 +564,22 @@ function openForecastModal() {
   } catch (e) {
     console.error("Calendar update error:", e);
   }
+
+  // Log trace for opening the TV Weather Radar Channel
+  if (typeof window.logPythonTrace === "function") {
+    window.logPythonTrace("Check TV Weather Radar", [
+      {
+        file: "bst.py",
+        fn: "WeatherBST.search_range(1, 30)",
+        dsa: "Binary Search Tree Range Query O(log N + K)"
+      },
+      {
+        file: "queue.py",
+        fn: "environment_queue.peek_upcoming(30)",
+        dsa: "FIFO Queue Iteration O(N)"
+      }
+    ]);
+  }
 }
 window.openForecastModal = openForecastModal;
 
@@ -516,6 +625,17 @@ json.dumps(upcoming)
       } catch (err) {
         upcomingHazards = [];
       }
+    }
+
+    // Emit Python Execution Trace Log
+    if (typeof window.logPythonTrace === "function") {
+      window.logPythonTrace("Checked Weather Disaster Forecast Radar", [
+        {
+          file: "bst.py",
+          fn: "environment_queue.get_season_calendar()",
+          dsa: "Binary Search Tree In-Order Traversal O(N)"
+        }
+      ]);
     }
 
     const hasDanger =
@@ -628,6 +748,17 @@ function renderForecastCalendar() {
       }
     }
 
+    // Emit Python Execution Trace Log for 30-Day BST In-Order Traversal
+    if (typeof window.logPythonTrace === "function") {
+      window.logPythonTrace("Render 30-Day Weather Forecast Calendar", [
+        {
+          file: "bst.py",
+          fn: "WeatherBST.in_order_traversal()",
+          dsa: "Binary Search Tree In-Order Traversal O(N)",
+        },
+      ]);
+    }
+
     const currentDayVal = window.runPython(
       "getattr(globals().get('climate_queue') or globals().get('environment_queue'), 'current_day', 1)",
     );
@@ -674,3 +805,31 @@ function renderForecastCalendar() {
   }
 }
 window.renderForecastCalendar = renderForecastCalendar;
+
+/**
+ * Synchronizes the NPC title, level badge, and hover tooltip title attribute
+ * directly from Python N-ary quest_tree memory.
+ */
+function updateFrogLevelBadge() {
+  if (!pyReady()) return;
+
+  // Query updated values directly from Python WASM tree
+  const level = Number(py("quest_tree.current_level")) || 1;
+  const levelTitle = py("str(getattr(quest_tree.current_node, 'title', 'Novice Gardener'))");
+  const activePerk = py("quest_tree.get_current_perk_description()");
+
+  const levelEl = document.getElementById("frog-level");
+  const titleEl = document.getElementById("frog-title");
+
+  if (titleEl) {
+    titleEl.textContent = levelTitle;
+  }
+
+  if (levelEl) {
+    // 1. Update visual badge text
+    levelEl.textContent = `Lvl ${level}`;
+
+    // 2. Update hover tooltip title attribute
+    levelEl.setAttribute("title", `Active Perk: ${activePerk}`);
+  }
+}

@@ -16,6 +16,8 @@
 function submitQuestCrop() {
   if (!pyReady()) return;
 
+  beginActionTrace("Quest Interaction");
+
   // Validate that player has selected an inventory item
   if (!selectedInventoryKey) {
     logConsole("Error: select a harvested crop from your inventory first!");
@@ -105,7 +107,7 @@ _process_quest()
 
   if (res.status === "error") {
     logConsole(
-      `Error during quest submission: ${res.message || "Unknown error"}`,
+      `Error during quest submission: ${res.message || "Unknown error"}`
     );
     return;
   }
@@ -116,13 +118,13 @@ _process_quest()
   }
   if (res.status === "wrong_crop") {
     logConsole(
-      `Wumbus: "Ribbit! I do not want ${selectedInventoryKey}! Bring me ${res.req_amt}x ${res.req_crop}!"`,
+      `Wumbus: "Ribbit! I do not want ${selectedInventoryKey}! Bring me ${res.req_amt}x ${res.req_crop}!"`
     );
     return;
   }
   if (res.status === "not_enough") {
     logConsole(
-      `Wumbus: "Ribbit! You don't have enough! I need ${res.req_amt}x ${res.req_crop}!"`,
+      `Wumbus: "Ribbit! You don't have enough! I need ${res.req_amt}x ${res.req_crop}!"`
     );
     return;
   }
@@ -131,46 +133,65 @@ _process_quest()
   const data = res.data;
   let payout = Number(data.coins) || 0;
 
+  // Primary trace for the quest submission hand-in
+  if (typeof window.logPythonTrace === "function") {
+    window.logPythonTrace("Quest Submission Hand-In", [
+      {
+        file: "queue.py",
+        fn: "environment_queue.get_current_season()",
+        dsa: "Queue State Reading",
+      },
+      {
+        file: "hierarchical_tree_and_traversals.py",
+        fn: "quest_tree.get_current_req(season)",
+        dsa: "Tree Lookup",
+      },
+      {
+        file: "hash.py",
+        fn: "inventory_hash.get(key) / consume(key)",
+        dsa: "Hash Table Linear Probing",
+      },
+      {
+        file: "hierarchical_tree_and_traversals.py",
+        fn: "quest_tree.add_exp(exp)",
+        dsa: "Parent-Child Node Traversal",
+      },
+    ]);
+  }
+
   if (data.level_up) {
     const bonus = Number(data.bonus_coins) || 0;
     payout += bonus;
 
     logConsole(
-      `LEVEL UP! Wumbus advanced to Level ${data.level} (${data.title})! Unlocked: ${data.perk}`,
+      `LEVEL UP! Wumbus advanced to Level ${data.level} (${data.title})! Unlocked: ${data.perk}`
     );
     logConsole(
-      `Quest Completed! (+${data.exp} EXP, +${data.coins} Coins) + LEVEL BONUS (+${bonus} Coins)!`,
+      `Quest Completed! (+${data.exp} EXP, +${data.coins} Coins) + LEVEL BONUS (+${bonus} Coins)!`
     );
+
+    // Appends a secondary trace card for the Level-Up & Perk Activation
+    if (typeof window.logPythonTrace === "function") {
+      window.logPythonTrace(`Level Up: Lvl ${data.level} (${data.title})`, [
+        {
+          file: "hierarchical_tree_and_traversals.py",
+          fn: "quest_tree.advance_node()",
+          dsa: "N-ary Tree Child Node Activation",
+        },
+        {
+          file: "hierarchical_tree_and_traversals.py",
+          fn: "quest_tree.get_current_perk_description()",
+          dsa: "Dynamic Level Perk Attribute Query",
+        },
+      ]);
+    }
   } else {
     logConsole(
-      `Quest Hand-in Successful! Received +${data.exp} EXP & +${data.coins} Coins!`,
+      `Quest Hand-in Successful! Received +${data.exp} EXP & +${data.coins} Coins!`
     );
   }
 
-  // Log DSA execution trace for quest processing
-  logPythonTrace("Quest Submission Hand-In", [
-    {
-      file: "queue.py",
-      fn: "environment_queue.get_current_season()",
-      dsa: "Queue State Reading",
-    },
-    {
-      file: "hierarchical_tree_and_traversals.py",
-      fn: "quest_tree.get_current_req(season)",
-      dsa: "Tree Lookup",
-    },
-    {
-      file: "hash.py",
-      fn: "inventory_hash.get(key) / consume(key)",
-      dsa: "Hash Table Linear Probing",
-    },
-    {
-      file: "hierarchical_tree_and_traversals.py",
-      fn: "quest_tree.add_exp(exp)",
-      dsa: "Parent-Child Node Traversal",
-    },
-  ]);
-
+  updateFrogLevelBadge();
   addCoins(payout);
   clearSelectionIfEmpty();
   renderMinecraftHotbar();
@@ -187,6 +208,8 @@ window.submitQuestCrop = submitQuestCrop;
  */
 function sellHarvestedCrop() {
   if (!pyReady()) return;
+
+  beginActionTrace("Selling Interaction");
 
   if (!selectedInventoryKey) {
     logConsole("Error: select a harvested crop from your inventory to sell!");
@@ -210,6 +233,27 @@ function sellHarvestedCrop() {
       ),
     ) || 30;
 
+  // Emit Python Execution Trace Log for crop sale & hash lookup
+  if (typeof window.logPythonTrace === "function") {
+    window.logPythonTrace("Sell Harvested Crop", [
+      {
+        file: "hash.py",
+        fn: `inventory_hash.get("${selectedInventoryKey}")`,
+        dsa: "Hash Table Linear Probing Lookup O(1)",
+      },
+      {
+        file: "oop_concepts.py",
+        fn: `CROP_DATABASE.get("${selectedInventoryKey}").sell_price`,
+        dsa: "OOP Registry Property Access O(1)",
+      },
+      {
+        file: "hash.py",
+        fn: `inventory_hash.consume("${selectedInventoryKey}")`,
+        dsa: "Hash Table Key Mutation / Deletion",
+      },
+    ]);
+  }
+
   // Consume crop unit from hash table and grant coins
   consumeItem(selectedInventoryKey);
   addCoins(sellPrice);
@@ -221,6 +265,7 @@ function sellHarvestedCrop() {
   renderMinecraftHotbar();
   updateStatusUI();
 }
+window.sellHarvestedCrop = sellHarvestedCrop;
 
 /* ==========================================================================
    3. Fertilizer Store & Seed Bag Economy
@@ -228,13 +273,15 @@ function sellHarvestedCrop() {
 
 /**
  * Purchases 1x Plant Defense Fertilizer unit and inserts it into inventory_hash.
- * @param {number} [cost=20] - Gold coin cost of fertilizer.
+ * @param {number} [cost=20] Gold coin cost of fertilizer.
  */
 function buyFertilizer(cost = 20) {
   if (!pyReady()) {
     logConsole("Error: the Python engine is still loading.");
     return;
   }
+
+  beginActionTrace("Buy Fertilizer");
 
   if (userCoins < cost) {
     logConsole("Not enough coins!");
@@ -254,19 +301,22 @@ True
   logConsole(`Purchased ${FERTILIZER_KEY}`);
 
   // Log DSA execution trace for hash insertion
-  logPythonTrace("Purchased Fertilizer", [
-    {
-      file: "hash.py",
-      fn: "inventory_hash.add(FERTILIZER_KEY, item)",
-      dsa: "Linear Probing Hash Table Insertion",
-    },
-    {
-      file: "oop_concepts.py",
-      fn: "Fertilizer Item Lookup",
-      dsa: "Static Property Encapsulation",
-    },
-  ]);
+  if (typeof window.logPythonTrace === "function") {
+    window.logPythonTrace("Purchased Fertilizer", [
+      {
+        file: "hash.py",
+        fn: `inventory_hash.add("${FERTILIZER_KEY}", item)`,
+        dsa: "Linear Probing Hash Table Insertion O(1)",
+      },
+      {
+        file: "hash.py",
+        fn: `inventory_hash.get("${FERTILIZER_KEY}")`,
+        dsa: "Inventory Key Verification O(1)",
+      },
+    ]);
+  }
 }
+window.buyFertilizer = buyFertilizer;
 
 /**
  * Purchases a Tiered Mystery Seed Bag (Tier 1, 2, or 3), executes a greedy probabilistic
@@ -279,6 +329,8 @@ function buyMysteryBag(tier, cost) {
     logConsole("Error: the Python engine is still loading.");
     return;
   }
+
+  beginActionTrace("Buy Mystery Bag");
 
   if (userCoins < cost) {
     logConsole("Not enough coins!");
@@ -335,29 +387,32 @@ True
   logConsole(`T${safeTier} Bag rolled ${seedKey} [cost: ${cost}]`);
 
   // Log DSA execution trace for seed bag rolling and insertion
-  logPythonTrace("Bought Mystery Seed Bag & Rolled Seed", [
-    {
-      file: "queue.py",
-      fn: "environment_queue.get_current_season()",
-      dsa: "FIFO Queue State Query",
-    },
-    {
-      file: "paradigms.py",
-      fn: "buy_seasonal_mystery_bag(tier, season)",
-      dsa: "Greedy Probabilistic Bag Roll",
-    },
-    {
-      file: "oop_concepts.py",
-      fn: "CROP_DATABASE.values() Lookup",
-      dsa: "Object Property Matching",
-    },
-    {
-      file: "hash.py",
-      fn: "inventory_hash.add(seedKey, item)",
-      dsa: "Hash Table Insertion",
-    },
-  ]);
+  if (typeof window.logPythonTrace === "function") {
+    window.logPythonTrace("Bought Mystery Seed Bag & Rolled Seed", [
+      {
+        file: "queue.py",
+        fn: "environment_queue.get_current_season()",
+        dsa: "FIFO Queue State Query O(1)",
+      },
+      {
+        file: "paradigms.py",
+        fn: `buy_seasonal_mystery_bag(${safeTier}, season)`,
+        dsa: "Greedy Probabilistic Bag Roll O(N)",
+      },
+      {
+        file: "oop_concepts.py",
+        fn: "CROP_DATABASE.values() Lookup",
+        dsa: "OOP Registry Property Filtering O(N)",
+      },
+      {
+        file: "hash.py",
+        fn: `inventory_hash.add("${seedKey}", item)`,
+        dsa: "Linear Probing Hash Table Insertion O(1)",
+      },
+    ]);
+  }
 }
+window.buyMysteryBag = buyMysteryBag;
 
 /* ==========================================================================
    4. Shop Seasonal Crop Preview Grid Renderer
