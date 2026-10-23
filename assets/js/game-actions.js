@@ -267,7 +267,7 @@ function executeToolOnTile(r, c) {
         stack.push({'action': 'water', 'r': ${r}, 'c': ${c}, 'desc': 'Watered Tile at [${r}, ${c}]'})
             `);
 
-      logConsole(`Watered tile [${r}, ${c}] (-1L Water)`);
+      logConsole(``);
 
       // Log DSA execution trace for direct matrix mutation and action stack push
       if (typeof window.logPythonTrace === "function") {

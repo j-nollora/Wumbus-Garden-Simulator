@@ -162,6 +162,9 @@ function updateStatusUI() {
   setText("stat-bucket", `${userBucket}/${maxBucket}`);
   setText("stat-coins", `${userCoins}`);
 
+  // Glossy progress fills (Energy / Water / Coins)
+  renderStatBars();
+
   if (!hud) return;
 
   // Render active Season Name and Day Number
@@ -178,6 +181,7 @@ function updateStatusUI() {
     setText("stat-weather", String(hud.weather));
     const weatherIcon = document.getElementById("weather-icon");
     if (weatherIcon) weatherIcon.src = getWeatherIconUrl(hud.weather);
+    applyWeatherTheme(hud.weather); // sunny sky + rays  <->  rain + lightning
   }
 
   // Render Tool AOE Range Badge
@@ -641,6 +645,11 @@ json.dumps(upcoming)
     const hasDanger =
       Array.isArray(upcomingHazards) && upcomingHazards.length > 0;
 
+    // Remembered so End Day can play the matching grid animation
+    window.tomorrowHazard = hasDanger
+      ? upcomingHazards[0].disaster || "Environmental Hazard"
+      : null;
+
     // 1. Update TV Header Screen GIF & Red/Green LED Alert Dot for Tomorrow
     if (typeof updateTVForecastIcon === "function") {
       updateTVForecastIcon(hasDanger);
@@ -833,3 +842,174 @@ function updateFrogLevelBadge() {
     levelEl.setAttribute("title", `Active Perk: ${activePerk}`);
   }
 }
+
+/* ==========================================================================
+   8. Weather Theme, Progress Bars & Garden Disaster Animations (v0.8.0)
+   ========================================================================== */
+
+/* ---------- 8a. Weather theme (sunny sky + rays  <->  gloomy rain + lightning) ---------- */
+
+/**
+ * Switches the whole scene between the sunny afternoon and the stormy sky.
+ * Only the class on <html> changes; every visual is driven by styles.css:
+ *   weather-sunny : blue sky, glowing sun, warm sunrays, birds
+ *   weather-rainy : slate storm sky, falling rain, intermittent lightning (no sun)
+ * Storm, thunder, drizzle and shower weather all count as rainy.
+ * @param {string} weather - Weather label from the Python state (e.g. "Sunny", "Rainy").
+ */
+function applyWeatherTheme(weather) {
+  const w = String(normalizePy(weather) || "").toLowerCase();
+  const rainy = /rain|drizzle|shower|storm|thunder/.test(w);
+  const root = document.documentElement;
+  root.classList.toggle("weather-rainy", rainy);
+  root.classList.toggle("weather-sunny", !rainy);
+  root.dataset.weather = rainy ? "rainy" : "sunny";
+}
+window.applyWeatherTheme = applyWeatherTheme;
+
+/* ---------- 8b. Glossy progress bars (Energy, Water, Coins) ---------- */
+
+// Coins have no hard maximum, so the bar fills against the next "goal" tier.
+const COIN_BAR_TIERS = [250, 500, 1000, 2500, 5000, 10000];
+
+/**
+ * @param {number} coins - Current coin count.
+ * @returns {number} The smallest tier that holds `coins` (grows in 10k steps past the last tier).
+ */
+function coinBarCap(coins) {
+  return COIN_BAR_TIERS.find((tier) => coins <= tier) || Math.ceil(coins / 10000) * 10000;
+}
+
+/**
+ * Sets one progress bar's width (as a percentage) plus its ARIA values.
+ * The CSS width transition animates the fill as resources are spent or refilled.
+ * @param {string} fillId - ID of the .stat-fill element.
+ * @param {number} value - Current amount.
+ * @param {number} max - Maximum for the bar.
+ */
+function setStatBar(fillId, value, max) {
+  const fill = document.getElementById(fillId);
+  if (!fill) return;
+
+  const safeMax = Math.max(1, Number(max) || 1);
+  const safeValue = Math.max(0, Number(value) || 0);
+  const pct = Math.min(100, (safeValue / safeMax) * 100);
+
+  fill.style.width = `${pct}%`;
+
+  const track = fill.parentElement;
+  if (track) {
+    track.setAttribute("aria-valuemax", String(safeMax));
+    track.setAttribute("aria-valuenow", String(safeValue));
+  }
+
+  const card = fill.closest(".stat-card");
+  if (card) card.classList.toggle("is-low", pct <= 20);
+}
+
+/**
+ * Refreshes all three bars from the shared game globals.
+ * Called from updateStatusUI(), so it runs after every action that spends or gains resources.
+ */
+function renderStatBars() {
+  const energy = typeof userEnergy !== "undefined" ? userEnergy : 0;
+  const energyMax = typeof maxEnergy !== "undefined" ? maxEnergy : 100;
+  const bucket = typeof userBucket !== "undefined" ? userBucket : 0;
+  const bucketMax = typeof maxBucket !== "undefined" ? maxBucket : 5;
+  const coins = typeof userCoins !== "undefined" ? userCoins : 0;
+
+  setStatBar("stat-energy-fill", energy, energyMax);
+  setStatBar("stat-bucket-fill", bucket, bucketMax);
+  setStatBar("stat-coins-fill", coins, coinBarCap(Number(coins) || 0));
+}
+window.renderStatBars = renderStatBars;
+
+/* ---------- 8c. Disaster animations over the garden grid ---------- */
+
+// Each effect = the class put on #garden-stage + how long it runs (ms, matches styles.css).
+const DISASTER_FX = {
+  earthquake: { cls: "is-earthquake", ms: 1800 },
+  alien: { cls: "is-alien", ms: 3000 },
+  "green-rain": { cls: "is-green-rain", ms: 3000 },
+  meteor: { cls: "is-meteor", ms: 2600 },
+};
+
+let disasterFxTimer = null;
+
+/**
+ * Maps a disaster name from the forecast / game state to an effect key.
+ * @param {string} name - e.g. "Meteorite Strike", "Alien Escape", "Green Rain Windstorm", "Earthquake".
+ * @returns {string|null} Key of DISASTER_FX, or null when the name is not recognised.
+ */
+function resolveDisasterType(name) {
+  const n = String(normalizePy(name) || "").toLowerCase();
+  if (n.includes("meteor")) return "meteor";
+  if (n.includes("alien") || n.includes("ufo")) return "alien";
+  if (n.includes("green") || n.includes("wind") || n.includes("acid")) return "green-rain";
+  if (n.includes("quake") || n.includes("earth")) return "earthquake";
+  return null;
+}
+
+/** Removes any running disaster animation from the garden. */
+function clearDisasterFx() {
+  clearTimeout(disasterFxTimer);
+  const stage = document.getElementById("garden-stage");
+  if (stage) {
+    Object.values(DISASTER_FX).forEach((fx) => stage.classList.remove(fx.cls));
+  }
+  document.documentElement.classList.remove("is-quaking");
+}
+
+/**
+ * Plays the animation for a nightly disaster on top of the soil grid.
+ * Safe to call repeatedly: a new call restarts the animation from the beginning.
+ * @param {string} name - Disaster name (see resolveDisasterType).
+ * @returns {string|null} The effect key that played, or null if nothing matched.
+ */
+function playDisasterFx(name) {
+  const type = resolveDisasterType(name);
+  const stage = document.getElementById("garden-stage");
+  if (!type || !stage) return null;
+
+  const fx = DISASTER_FX[type];
+  clearDisasterFx();
+  void stage.offsetWidth; // force reflow so the CSS animations restart
+
+  stage.classList.add(fx.cls);
+  if (type === "earthquake") document.documentElement.classList.add("is-quaking");
+
+  disasterFxTimer = setTimeout(clearDisasterFx, fx.ms + 150);
+  return type;
+}
+window.playDisasterFx = playDisasterFx;
+window.clearDisasterFx = clearDisasterFx;
+
+/* ---------- 8d. Hook into "End Day" ---------- */
+
+// true  -> play the effect for the hazard the Weather Channel predicted for tomorrow
+// false -> only play effects you trigger yourself with playDisasterFx(name)
+const AUTO_PLAY_FORECAST_HAZARD = true;
+
+/**
+ * Wraps advanceNextDay() so the garden reacts when the day rolls over.
+ * It refreshes tomorrow's BST forecast first, then plays that hazard's animation
+ * while the original day-advance logic runs untouched.
+ */
+(function hookAdvanceDay() {
+  if (typeof window.advanceNextDay !== "function" || window.advanceNextDay.__fxHooked) return;
+
+  const original = window.advanceNextDay;
+  const wrapped = function (...args) {
+    if (AUTO_PLAY_FORECAST_HAZARD) {
+      try {
+        if (typeof checkDisasterForecast === "function") checkDisasterForecast();
+        if (window.tomorrowHazard) playDisasterFx(window.tomorrowHazard);
+      } catch (e) {
+        console.error("Disaster FX error:", e);
+      }
+    }
+    return original.apply(this, args);
+  };
+  wrapped.__fxHooked = true;
+  window.advanceNextDay = wrapped;
+})();

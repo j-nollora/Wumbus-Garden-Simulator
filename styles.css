@@ -1,20 +1,58 @@
 /* ==========================================================================
-   Wumbus' Garden Simulator — Master Stylesheet
+   Wumbus' Garden Simulator — Master Stylesheet  (v0.8.0 UI overhaul)
+
+   PANEL HIERARCHY (strict)
+   Only these six surfaces own a background + border:
+     1. .topbar            Header
+     2. .stat-strip        Stats
+     3. .soil-matrix-grid  Garden grid matrix frame
+     4. .log-panel         Execution & function trace log
+     5. .town              Quests / Shop / Sell container
+     6. .tv-set-btn        TV set
+   Everything else (app frame, season/weather, hotbar wrappers, well, stat bars'
+   wrappers, tab body, banners) is transparent and borderless. Buttons and slots
+   are controls, not panels, so they keep a glossy fill but no outline.
+   Modal popups are separate floating dialogs and keep one card each.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. Imports & Typography Config
+   1. Imports, Registered Properties & Design Tokens
    -------------------------------------------------------------------------- */
 @import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Nunito:wght@600;700;800&family=Pixelify+Sans:wght@500;600;700&display=swap");
 
-/* Global Theme Design Tokens & Color Palette */
+/* Registered colours let the sky cross-fade between sunny and stormy. */
+@property --sky-top     { syntax: "<color>"; inherits: true; initial-value: #1b5cb7; }
+@property --sky-mid     { syntax: "<color>"; inherits: true; initial-value: #2993e0; }
+@property --sky-low     { syntax: "<color>"; inherits: true; initial-value: #5bcbf5; }
+@property --sky-horizon { syntax: "<color>"; inherits: true; initial-value: #a2f2fb; }
+
 :root {
   /* Brand & Layout Palette */
   --ink: #2a2018;
   --page: #24382c;
   --mint: #e5f4df;
 
-  /* Sky & Card Accents */
+  /* Afternoon Sky Gradient & Sun */
+  --sky-top: #1b5cb7;
+  --sky-mid: #2993e0;
+  --sky-low: #5bcbf5;
+  --sky-horizon: #a2f2fb;
+  --sun-core: #fff7a5;
+  --sun-gold: #ffd84a;
+  --sun-size: clamp(240px, 30vmax, 420px);
+  --sun-cx: calc(var(--sun-size) / 2 - 15px); /* sun centre = box centre, box sits at -15px,-15px */
+  --sun-cy: calc(var(--sun-size) / 2 - 15px);
+
+  /* Status Bar Colours */
+  --bar-energy: #f59e0b;
+  --bar-water: #0284c7;
+  --bar-coin: #eab308;
+  --bar-exp: #22c55e;
+
+  /* Stardew-style Palette (kept: other scripts reference these inline) */
+  --parchment: #f7f8f2;
+  --parchment-warm: #fbf3d4;
+  --sage-card: #dbebe2;
   --sky: #a9d8fb;
   --sky-card: #f3faff;
   --butter: #fff0a6;
@@ -42,10 +80,34 @@
   --focus: #ff8a00;
   --shadow: 0 4px 0 rgba(42, 32, 24, 0.35);
 
+  /* Glass surfaces shared by the six panels */
+  --glass-edge: rgba(255, 255, 255, 0.78);
+  --glass-shadow:
+    0 14px 34px rgba(15, 23, 42, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -2px 0 rgba(15, 23, 42, 0.06);
+  --glow-gold: 0 0 0 3px #fbbf24, 0 0 18px 2px rgba(251, 191, 36, 0.75);
+
   /* Font Stacks */
   --font-display: "Pixelify Sans", ui-monospace, monospace;
   --font-body: "Nunito", system-ui, sans-serif;
   --font-mono: "Fira Code", ui-monospace, monospace;
+}
+
+/* Stormy sky: cross-fades via the registered colours above */
+html.weather-rainy {
+  --sky-top: #1e293b;
+  --sky-mid: #273549;
+  --sky-low: #334155;
+  --sky-horizon: #3f5266;
+}
+
+html {
+  transition:
+    --sky-top 1.6s ease,
+    --sky-mid 1.6s ease,
+    --sky-low 1.6s ease,
+    --sky-horizon 1.6s ease;
 }
 
 /* --------------------------------------------------------------------------
@@ -66,9 +128,23 @@ body {
   font-family: var(--font-body);
   font-weight: 600;
   color: var(--ink);
-  background: var(--page);
   min-height: 100vh;
   padding: 20px;
+
+  /* Layered afternoon scene, painted back-to-front (first = frontmost):
+     forest strip > near hills > mid mountains > far mountains > sky gradient.
+     Pure CSS gradient + inline SVG data URIs, so no image files are needed. */
+  background-color: var(--sky-top); /* fallback if gradients fail */
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='104' viewBox='0 0 480 104' shape-rendering='crispEdges'%3E%3Cpath fill='%231d5f3a' d='M0 88h480v16h-480zM36 80h8v8h-8zM32 56h16v8h-16zM28 64h24v8h-24zM24 72h32v8h-32zM92 80h8v8h-8zM88 48h16v8h-16zM84 56h24v8h-24zM80 64h32v8h-32zM76 72h40v8h-40zM132 80h8v8h-8zM128 56h16v8h-16zM124 64h24v8h-24zM120 72h32v8h-32zM188 80h8v8h-8zM184 48h16v8h-16zM180 56h24v8h-24zM176 64h32v8h-32zM172 72h40v8h-40zM228 80h8v8h-8zM224 56h16v8h-16zM220 64h24v8h-24zM216 72h32v8h-32zM284 80h8v8h-8zM280 56h16v8h-16zM276 64h24v8h-24zM272 72h32v8h-32zM324 80h8v8h-8zM320 48h16v8h-16zM316 56h24v8h-24zM312 64h32v8h-32zM308 72h40v8h-40zM380 80h8v8h-8zM376 56h16v8h-16zM372 64h24v8h-24zM368 72h32v8h-32zM420 80h8v8h-8zM416 48h16v8h-16zM412 56h24v8h-24zM408 64h32v8h-32zM404 72h40v8h-40z'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='144' viewBox='0 0 480 144' shape-rendering='crispEdges'%3E%3Cpath fill='%232e8a4f' d='M0 144V112h8V104h8V96h8V80h8V64h8V56h8V64h8V72h8V80h8V88h8V104h8V112h8V120h8V112h8V104h8V112h8V104h8V96h8V80h8V64h8V56h8V64h8V72h8V80h8V88h8V104h8V112h8V120h8V112h8V104h8V112h8V104h8V96h8V80h8V64h8V56h8V64h8V72h8V80h8V88h8V104h8V112h8V120h8V112h8V104h8V112h8V104h8V96h8V80h8V64h8V56h8V64h8V72h8V80h8V88h8V104h8V112h8V120h8V112h8V104h8V144z'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='208' viewBox='0 0 480 208' shape-rendering='crispEdges'%3E%3Cpath fill='%233fa56b' d='M0 208V136h8V160h8V168h8V152h8V120h8V112h8V96h8V72h8V88h8V120h8V152h8V160h8V152h8V144h8V144h8V120h8V88h8V56h8V104h8V136h8V144h8V144h8V160h8V160h8V144h8V104h8V80h8V72h8V104h8V120h8V136h8V160h8V168h8V152h8V120h8V112h8V96h8V72h8V88h8V120h8V152h8V160h8V152h8V144h8V144h8V120h8V88h8V56h8V104h8V136h8V144h8V144h8V160h8V160h8V144h8V104h8V80h8V72h8V104h8V120h8V208z'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='272' viewBox='0 0 480 272' shape-rendering='crispEdges'%3E%3Cpath fill='%235fb89a' d='M0 272V120h8V144h8V160h8V160h8V160h8V184h8V200h8V200h8V184h8V160h8V136h8V128h8V120h8V104h8V96h8V104h8V112h8V144h8V176h8V192h8V192h8V184h8V168h8V176h8V176h8V168h8V144h8V104h8V72h8V80h8V120h8V144h8V160h8V160h8V160h8V184h8V200h8V200h8V184h8V160h8V136h8V128h8V120h8V104h8V96h8V104h8V112h8V144h8V176h8V192h8V192h8V184h8V168h8V176h8V176h8V168h8V144h8V104h8V72h8V80h8V272z'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 38%, var(--sky-low) 72%, var(--sky-horizon) 100%);
+  background-repeat: repeat-x, repeat-x, repeat-x, repeat-x, no-repeat;
+  background-position: left bottom, left bottom, left bottom, left bottom, center top;
+  background-size: 480px 104px, 480px 144px, 480px 208px, 480px 272px, 100% 100%;
+  background-attachment: fixed; /* scene stays anchored while the app scrolls */
 }
 
 /* Pixel Art Rendering Enforcement */
@@ -89,7 +165,7 @@ select:focus-visible,
 .soil-tile:focus-visible,
 .mc-slot:focus-visible {
   outline: 3px solid var(--focus);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 /* Screen Reader Only Utility Class */
@@ -106,118 +182,464 @@ select:focus-visible,
 }
 
 /* --------------------------------------------------------------------------
-   3. Main App Outer Frame & Top Header
+   3. Atmosphere: Sun, Sunrays, Birds, Storm Sky, Rain & Lightning
+   Layer order (back -> front):
+     body background (sky + mountains)     canvas
+     body::after   sun + glow              z 0
+     .sky-gloom    storm veil              z 0 (fades in when rainy)
+     .app          game container          z 1
+     body::before  sunrays (overlay)       z 2
+     .weather-fx   rain + lightning        z 2
+     html::before / html::after  birds     z 3
+     .modal-overlay                        z 1000
+   All overlays are pointer-events: none.
    -------------------------------------------------------------------------- */
-.app {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 18px;
-  background: var(--mint);
-  border: 3px solid var(--ink);
-  border-radius: 22px;
-  box-shadow: var(--shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+
+/* Sun: pixel disc + golden halo (original art) */
+body::after {
+  content: "";
+  position: fixed;
+  top: -15px;
+  left: -15px;
+  width: var(--sun-size);
+  height: var(--sun-size);
+  z-index: 0;
+  pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffd84a' d='M5 0h6v1h-6zM3 1h10v1h-10zM2 2h12v1h-12zM1 3h14v1h-14zM1 4h14v1h-14zM0 5h16v1h-16zM0 6h16v1h-16zM0 7h16v1h-16zM0 8h16v1h-16zM0 9h16v1h-16zM0 10h16v1h-16zM1 11h14v1h-14zM1 12h14v1h-14zM2 13h12v1h-12zM3 14h10v1h-10zM5 15h6v1h-6z'/%3E%3Cpath fill='%23fff7a5' d='M5 1h6v1h-6zM4 2h8v1h-8zM3 3h10v1h-10zM3 4h10v1h-10zM2 5h12v1h-12zM2 6h12v1h-12zM2 7h12v1h-12zM2 8h12v1h-12z'/%3E%3C/svg%3E") center / 40% auto no-repeat,
+    radial-gradient(circle at center,
+      var(--sun-core) 0%,
+      var(--sun-gold) 22%,
+      rgba(255, 216, 74, 0.55) 30%,
+      rgba(255, 216, 74, 0.22) 48%,
+      rgba(255, 216, 74, 0) 70%);
+  transform-origin: center;
+  animation: sunPulse 6s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
+/* Sunrays (original art) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: repeating-conic-gradient(
+    from 0deg at var(--sun-cx) var(--sun-cy),
+    rgba(255, 247, 165, 0.55) 0deg 2.5deg,
+    rgba(255, 247, 165, 0) 2.5deg 8deg,
+    rgba(255, 255, 255, 0.4) 8deg 9.5deg,
+    rgba(255, 255, 255, 0) 9.5deg 15deg,
+    rgba(255, 216, 74, 0.4) 15deg 19deg,
+    rgba(255, 216, 74, 0) 19deg 24deg
+  );
+  /* Fade rays with distance from the sun */
+  -webkit-mask-image: radial-gradient(circle at var(--sun-cx) var(--sun-cy), #000 0, rgba(0, 0, 0, 0.6) 38vmax, transparent 90vmax);
+  mask-image: radial-gradient(circle at var(--sun-cx) var(--sun-cy), #000 0, rgba(0, 0, 0, 0.6) 38vmax, transparent 90vmax);
+  mix-blend-mode: overlay;
+  transform-origin: var(--sun-cx) var(--sun-cy);
+  animation: sunrayShimmer 9s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+/* Birds + keyframes (original art) */
+/* Birds: two flocks of pixel V-shapes (inline SVG, wings flap via CSS inside the SVG).
+   html::before flies left -> right, html::after flies right -> left. */
+html::before,
+html::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  z-index: 3;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  will-change: transform;
+}
+
+html::before {
+  top: 7vh;
+  width: 144px;
+  height: 72px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 24' shape-rendering='crispEdges' fill='%232a2018'%3E%3Cstyle%3E.a%7Banimation:fa .7s steps(1) infinite%7D.b%7Banimation:fb .7s steps(1) infinite%7D%40keyframes fa%7B0%25%7Bopacity:1%7D50%25%7Bopacity:0%7D%7D%40keyframes fb%7B0%25%7Bopacity:0%7D50%25%7Bopacity:1%7D%7D%3C/style%3E%3Cpath class='a' style='animation-delay:0s' d='M0 6h1v1h-1zM1 7h1v1h-1zM2 8h1v1h-1zM3 9h1v1h-1zM4 10h1v1h-1zM5 11h1v1h-1zM11 6h1v1h-1zM10 7h1v1h-1zM9 8h1v1h-1zM8 9h1v1h-1zM7 10h1v1h-1zM6 11h1v1h-1z'/%3E%3Cpath class='b' style='animation-delay:0s' d='M0 8h1v1h-1zM1 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 10h1v1h-1zM5 11h1v1h-1zM6 11h1v1h-1zM7 10h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1z'/%3E%3Cpath class='a' style='animation-delay:-0.25s' d='M18 0h1v1h-1zM19 1h1v1h-1zM20 2h1v1h-1zM21 3h1v1h-1zM22 4h1v1h-1zM23 5h1v1h-1zM29 0h1v1h-1zM28 1h1v1h-1zM27 2h1v1h-1zM26 3h1v1h-1zM25 4h1v1h-1zM24 5h1v1h-1z'/%3E%3Cpath class='b' style='animation-delay:-0.25s' d='M18 2h1v1h-1zM19 2h1v1h-1zM20 3h1v1h-1zM21 3h1v1h-1zM22 4h1v1h-1zM23 5h1v1h-1zM24 5h1v1h-1zM25 4h1v1h-1zM26 3h1v1h-1zM27 3h1v1h-1zM28 2h1v1h-1zM29 2h1v1h-1z'/%3E%3Cpath class='a' style='animation-delay:-0.5s' d='M33 12h1v1h-1zM34 13h1v1h-1zM35 14h1v1h-1zM36 15h1v1h-1zM37 16h1v1h-1zM38 17h1v1h-1zM44 12h1v1h-1zM43 13h1v1h-1zM42 14h1v1h-1zM41 15h1v1h-1zM40 16h1v1h-1zM39 17h1v1h-1z'/%3E%3Cpath class='b' style='animation-delay:-0.5s' d='M33 14h1v1h-1zM34 14h1v1h-1zM35 15h1v1h-1zM36 15h1v1h-1zM37 16h1v1h-1zM38 17h1v1h-1zM39 17h1v1h-1zM40 16h1v1h-1zM41 15h1v1h-1zM42 15h1v1h-1zM43 14h1v1h-1zM44 14h1v1h-1z'/%3E%3C/svg%3E");
+  animation: flyAcross 46s linear infinite;
+}
+
+html::after {
+  top: 19vh;
+  width: 96px;
+  height: 48px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 24' shape-rendering='crispEdges' fill='%232a2018'%3E%3Cstyle%3E.a%7Banimation:fa .7s steps(1) infinite%7D.b%7Banimation:fb .7s steps(1) infinite%7D%40keyframes fa%7B0%25%7Bopacity:1%7D50%25%7Bopacity:0%7D%7D%40keyframes fb%7B0%25%7Bopacity:0%7D50%25%7Bopacity:1%7D%7D%3C/style%3E%3Cpath class='a' style='animation-delay:-0.1s' d='M0 0h1v1h-1zM1 1h1v1h-1zM2 2h1v1h-1zM3 3h1v1h-1zM4 4h1v1h-1zM5 5h1v1h-1zM11 0h1v1h-1zM10 1h1v1h-1zM9 2h1v1h-1zM8 3h1v1h-1zM7 4h1v1h-1zM6 5h1v1h-1z'/%3E%3Cpath class='b' style='animation-delay:-0.1s' d='M0 2h1v1h-1zM1 2h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 4h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 4h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1z'/%3E%3Cpath class='a' style='animation-delay:-0.4s' d='M20 10h1v1h-1zM21 11h1v1h-1zM22 12h1v1h-1zM23 13h1v1h-1zM24 14h1v1h-1zM25 15h1v1h-1zM31 10h1v1h-1zM30 11h1v1h-1zM29 12h1v1h-1zM28 13h1v1h-1zM27 14h1v1h-1zM26 15h1v1h-1z'/%3E%3Cpath class='b' style='animation-delay:-0.4s' d='M20 12h1v1h-1zM21 12h1v1h-1zM22 13h1v1h-1zM23 13h1v1h-1zM24 14h1v1h-1zM25 15h1v1h-1zM26 15h1v1h-1zM27 14h1v1h-1zM28 13h1v1h-1zM29 13h1v1h-1zM30 12h1v1h-1zM31 12h1v1h-1z'/%3E%3C/svg%3E");
+  opacity: 0.8;
+  animation: flyAcrossBack 62s linear infinite;
+  animation-delay: -22s;
+}
+
+/* Only transform + opacity are animated (compositor-friendly). */
+@keyframes sunPulse {
+  0%, 100% { transform: scale(1); opacity: 0.92; }
+  50% { transform: scale(1.07); opacity: 1; }
+}
+
+@keyframes sunrayShimmer {
+  0% { transform: rotate(-1.2deg); opacity: 0.55; }
+  50% { opacity: 0.9; }
+  100% { transform: rotate(1.2deg); opacity: 0.6; }
+}
+
+@keyframes flyAcross {
+  0% { transform: translate3d(-200px, 0, 0); }
+  50% { transform: translate3d(50vw, -16px, 0); }
+  100% { transform: translate3d(calc(100vw + 60px), 8px, 0); }
+}
+
+@keyframes flyAcrossBack {
+  0% { transform: translate3d(calc(100vw + 60px), 0, 0) scaleX(-1); }
+  50% { transform: translate3d(45vw, 14px, 0) scaleX(-1); }
+  100% { transform: translate3d(-200px, -6px, 0) scaleX(-1); }
+}
+
+/* Sunny -> rainy: the sun, its rays and the birds fade out */
+body::after,
+body::before,
+html::before,
+html::after {
+  transition: opacity 1.2s ease;
+}
+
+html.weather-rainy body::after,
+html.weather-rainy body::before {
+  opacity: 0;
+  animation: none;
+}
+
+html.weather-rainy::before,
+html.weather-rainy::after {
+  opacity: 0;
+  animation-play-state: paused;
+}
+
+/* Storm veil: slate/cyan wash that darkens the mountains behind the game */
+.sky-gloom {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.6s ease;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(8, 145, 178, 0.22), transparent 70%),
+    linear-gradient(180deg, rgba(8, 47, 73, 0.3) 0%, rgba(15, 23, 42, 0.46) 55%, rgba(15, 23, 42, 0.62) 100%);
+}
+
+html.weather-rainy .sky-gloom {
+  opacity: 1;
+}
+
+/* Rain + lightning overlay */
+.weather-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 1s ease, visibility 0s linear 1s;
+}
+
+html.weather-rainy .weather-fx {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 1s ease;
+}
+
+.rain {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+  animation-play-state: paused;
+  will-change: background-position;
+}
+
+html.weather-rainy .rain {
+  animation-play-state: running;
+}
+
+/* Distant, fine drops. Tile 120x200; one loop travels 1 tile across, 5 tiles down. */
+.rain-far {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='200' viewBox='0 0 120 200'%3E%3Cg fill='none' stroke='%23cfeaff' stroke-opacity='.42' stroke-width='1.2' stroke-linecap='round'%3E%3Cpath d='M18 14l-3.5 26M62 90l-3.5 26M98 40l-3.5 26M40 150l-3.5 26M88 165l-3.5 26'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 120px 200px;
+  animation: rainFar 1.1s linear infinite;
+}
+
+/* Close, bold drops. Tile 160x250; one loop travels 1 tile across, 4 tiles down. */
+.rain-near {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='250' viewBox='0 0 160 250'%3E%3Cg fill='none' stroke='%23e0f2fe' stroke-opacity='.62' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M24 20l-5 36M96 60l-5 36M140 130l-5 36M60 150l-5 36M120 12l-5 36M30 200l-5 36'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 160px 250px;
+  animation: rainNear 0.7s linear infinite;
+}
+
+@keyframes rainFar {
+  from { background-position: 0 0; }
+  to { background-position: -120px 1000px; }
+}
+
+@keyframes rainNear {
+  from { background-position: 0 0; }
+  to { background-position: -160px 1000px; }
+}
+
+/* Intermittent lightning: one white-blue flash with a bolt that fires with it */
+.lightning-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(90% 70% at 30% 0%, rgba(255, 255, 255, 0.95), rgba(186, 230, 253, 0.55) 55%, transparent 100%);
+  animation: lightningFlash 11s linear infinite;
+  animation-play-state: paused;
+}
+
+.lightning-bolt {
+  position: absolute;
+  top: 0;
+  width: 92px;
+  height: 44vh;
+  opacity: 0;
+  background: linear-gradient(180deg, #ffffff 0%, #e0f2fe 60%, #7dd3fc 100%);
+  clip-path: polygon(58% 0, 28% 44%, 47% 44%, 22% 100%, 80% 46%, 57% 46%, 82% 0);
+  filter: drop-shadow(0 0 10px rgba(186, 230, 253, 0.95));
+  animation: lightningFlash 11s linear infinite;
+  animation-play-state: paused;
+}
+
+.bolt-a { left: 18%; }
+.bolt-b { left: 71%; height: 36vh; animation-delay: -5.5s; transform: scaleX(-1); }
+
+html.weather-rainy .lightning-flash,
+html.weather-rainy .lightning-bolt {
+  animation-play-state: running;
+}
+
+@keyframes lightningFlash {
+  0%, 6%, 100% { opacity: 0; }
+  6.4% { opacity: 0.8; }
+  7.4% { opacity: 0.12; }
+  8.4% { opacity: 1; }
+  11% { opacity: 0; }
+  55% { opacity: 0; }
+  55.5% { opacity: 0.55; }
+  57% { opacity: 0; }
+}
+
+/* Smaller screens: shrink the scenery so it stays proportional */
+@media (max-width: 560px) {
+  body {
+    background-size: 240px 52px, 240px 72px, 240px 104px, 240px 136px, 100% 100%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   4. App Frame (no background, no border) & Header Panel
+   -------------------------------------------------------------------------- */
+.app,
+.app-container {
+  position: relative;
+  z-index: 1; /* above the sun, below the rays/rain overlays and modals */
+  max-width: 1320px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* PANEL 1: Header */
 .topbar {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
+  gap: 12px 22px;
+  padding: 10px 20px;
+  min-height: 96px;
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.86) 0%, rgba(254, 243, 199, 0.66) 100%);
+  border: 2px solid var(--glass-edge);
+  border-radius: 24px;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
 }
 
 /* Branding & Logo */
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .brand-logo {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
+  width: 54px;
+  height: 54px;
+  filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.3));
 }
 
 .brand-text h1 {
   margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 2.1rem;
+  font-size: 1.95rem;
   line-height: 1;
   letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .version {
   display: block;
   margin-top: 4px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: #5b6b5c;
 }
 
-/* Round Action Buttons (Guide / Code Viewers) */
-.menu-buttons {
+/* Season & weather: plain text, no card */
+.season-badge {
   display: flex;
   flex-direction: column;
+  gap: 3px;
+}
+
+.season-main {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.season-main img {
+  width: 22px;
+  height: 22px;
+  margin-right: 6px;
+}
+
+.season-weather {
+  display: flex;
+  align-items: center;
   gap: 6px;
+  font-size: 0.9rem;
+  color: #3d4f40;
 }
 
-.round-btn {
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  background: #b9f1b4;
-  border: 3px solid var(--ink);
-  border-radius: 50%;
-  box-shadow: 0 2px 0 rgba(42, 32, 24, 0.35);
-  transition:
-    transform 0.1s ease,
-    background-color 0.1s ease;
-}
-
-.round-btn img {
+.season-weather img {
   width: 20px;
   height: 20px;
 }
 
-.round-btn:hover {
-  background: #d6fbd2;
-  transform: translateY(-1px);
+.aoe-status {
+  font-size: 0.76rem;
+  color: #55655a;
 }
 
-.round-btn:active {
-  transform: translateY(1px);
+/* Labeled guide links: borderless, glow + lift + scale on hover */
+.menu-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* Header TV Broadcast Set Component */
+.menu-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease;
+}
+
+.menu-link img {
+  width: 30px;
+  height: 30px;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+/* glossy sheen that sweeps across on hover */
+.menu-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.75) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+
+.menu-link:hover {
+  transform: translateY(-2px) scale(1.06);
+  color: #7c2d12;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(253, 230, 138, 0.55));
+  box-shadow:
+    0 8px 18px rgba(245, 158, 11, 0.4),
+    0 0 16px rgba(251, 191, 36, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.menu-link:hover::after {
+  transform: translateX(120%);
+}
+
+.menu-link:hover img {
+  transform: scale(1.12) rotate(-4deg);
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.95));
+}
+
+.menu-link:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* PANEL 6: TV set (wood casing) */
 .tv-set-btn {
   position: relative;
-  height: 90px;
-  padding: 3px;
+  width: 235px;
+  height: 150px;
+  padding: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #3e2723; /* Wooden casing theme */
+  background: linear-gradient(180deg, #6d4a3a 0%, #3e2723 100%);
   border: 3px solid var(--ink, #2a2018);
-  border-radius: 6px;
-  box-shadow: 0 2px 0 rgba(42, 32, 24, 0.35);
-  transition:
-    transform 0.1s ease,
-    filter 0.1s ease;
+  border-radius: 12px;
+  box-shadow:
+    0 8px 16px rgba(15, 23, 42, 0.35),
+    inset 0 2px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tv-set-btn:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
+  transform: translateY(-2px) scale(1.03);
+  filter: brightness(1.1);
+  box-shadow:
+    0 12px 22px rgba(15, 23, 42, 0.4),
+    0 0 14px rgba(125, 211, 252, 0.55),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
 
 .tv-set-btn:active {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.99);
 }
 
 .tv-screen {
@@ -225,11 +647,12 @@ select:focus-visible,
   height: 100%;
   background: #000000;
   border: 2px solid #231612;
-  border-radius: 3px;
+  border-radius: 6px;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: inset 0 0 12px rgba(125, 211, 252, 0.25);
 }
 
 .tv-screen img {
@@ -242,248 +665,408 @@ select:focus-visible,
 /* TV Alert LED Dot Indicator */
 .tv-power-led {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 8px;
-  height: 8px;
+  top: 7px;
+  right: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   border: 1px solid #1a1008;
   background-color: #2ed573;
-  box-shadow: 0 0 4px #2ed573;
-  transition:
-    background-color 0.2s ease,
-    box-shadow 0.2s ease;
+  box-shadow: 0 0 5px #2ed573;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tv-power-led.is-safe {
   background-color: #2ed573;
-  box-shadow: 0 0 6px #2ed573;
+  box-shadow: 0 0 7px #2ed573;
 }
 
 .tv-power-led.has-danger {
   background-color: #ff4757 !important;
-  box-shadow: 0 0 8px #ff4757 !important;
+  box-shadow: 0 0 9px #ff4757 !important;
   animation: ledPulse 1s infinite alternate;
 }
 
 @keyframes ledPulse {
-  0% {
-    opacity: 1;
-    box-shadow: 0 0 4px #ff4757;
-  }
-  100% {
-    opacity: 0.4;
-    box-shadow: 0 0 10px #ff4757;
-  }
+  0% { opacity: 1; box-shadow: 0 0 4px #ff4757; }
+  100% { opacity: 0.4; box-shadow: 0 0 10px #ff4757; }
 }
 
-/* Player Stat Counter Strip */
-.stat-strip {
-  display: flex;
-  gap: 10px;
-  padding: 10px;
-  background: var(--sky);
-  border: 3px solid var(--ink);
-  border-radius: 16px;
-}
-
-.stat-card {
-  min-width: 92px;
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
+/* End Day: sunset-glass pill, borderless, soft press */
+.end-day-btn {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  background: var(--sky-card);
-  border: 3px solid var(--ink);
-  border-radius: 12px;
-}
-
-.stat-card img {
-  width: 36px;
-  height: 36px;
-}
-
-.stat-value {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
-/* Water Well Stat Component */
-.well-card {
-  flex-direction: row;
   gap: 10px;
-  padding-right: 14px;
-  text-align: left;
-  transition:
-    transform 0.1s ease,
-    background-color 0.1s ease;
-}
-
-.well-card img {
-  width: 48px;
-  height: 48px;
-}
-
-.well-card:hover {
-  background: #ffffff;
-  transform: translateY(-2px);
-}
-
-.well-card:active {
-  transform: translateY(1px);
-}
-
-.well-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.well-name {
+  padding: 13px 24px 13px 16px;
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 1.15rem;
-  line-height: 1;
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: #ffffff;
+  text-shadow: 0 2px 0 rgba(127, 29, 29, 0.5);
+  background: linear-gradient(180deg, #fb923c 0%, #f43f5e 100%);
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow:
+    0 10px 20px rgba(225, 29, 72, 0.4),
+    inset 0 -4px 0 rgba(127, 29, 29, 0.28),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease,
+    filter 0.16s ease;
 }
 
-.well-hint {
-  font-size: 0.7rem;
-  color: #3f5a6e;
+/* gloss highlight across the top half */
+.end-day-btn::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 3px;
+  height: 46%;
+  border-radius: 14px 14px 40px 40px / 14px 14px 18px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.05));
+  pointer-events: none;
+}
+
+.end-day-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.6) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.6s ease;
+  pointer-events: none;
+}
+
+.end-day-btn img,
+.end-day-btn span {
+  position: relative;
+  z-index: 1;
+}
+
+.end-day-btn img {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 2px 2px rgba(127, 29, 29, 0.45));
+}
+
+.end-day-btn:hover {
+  transform: translateY(-3px) scale(1.04);
+  filter: brightness(1.07) saturate(1.1);
+  box-shadow:
+    0 16px 28px rgba(225, 29, 72, 0.5),
+    0 0 20px rgba(251, 113, 133, 0.6),
+    inset 0 -4px 0 rgba(127, 29, 29, 0.28),
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.end-day-btn:hover::after {
+  transform: translateX(120%);
+}
+
+.end-day-btn:active {
+  transform: translateY(3px) scale(0.96);
+  filter: brightness(0.96);
+  box-shadow:
+    0 3px 8px rgba(225, 29, 72, 0.4),
+    inset 0 -1px 0 rgba(127, 29, 29, 0.28),
+    inset 0 3px 6px rgba(127, 29, 29, 0.35);
 }
 
 /* --------------------------------------------------------------------------
-   4. Game Board Three-Column Grid Layout
+   5. Board Layout (left stats / centre garden / right log + town)
    -------------------------------------------------------------------------- */
 .board {
   display: grid;
-  grid-template-columns: 172px minmax(320px, 1fr) minmax(300px, 400px);
+  grid-template-columns: 232px minmax(320px, 1fr) minmax(300px, 400px);
   gap: 18px;
   align-items: stretch;
 }
 
-/* --------------------------------------------------------------------------
-   5. Left Column: Season Badge, Inventory & Tools
-   -------------------------------------------------------------------------- */
-.left-col {
+.left-col,
+.garden-col,
+.right-col {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.season-badge {
-  padding: 10px 12px 8px;
-  background: #f7f8f2;
-  border: 3px solid var(--ink);
-  border-bottom: 0;
-  border-radius: 14px 14px 0 0;
+/* --------------------------------------------------------------------------
+   6. PANEL 2: Stats — glossy progress bars (icon + number above each bar)
+   -------------------------------------------------------------------------- */
+.stat-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 125%;
+  align-self: flex-start;
+  padding: 18px 18px 14px;
+  background: linear-gradient(180deg, rgba(224, 242, 254, 0.88) 0%, rgba(186, 230, 253, 0.64) 100%);
+  border: 2px solid var(--glass-edge);
+  border-radius: 24px;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
 }
 
-.season-main {
-  flex: 1;
+.stat-card {
+  position: relative;
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stat-head img {
+  width: 34px;
+  height: 34px;
+  filter: drop-shadow(0 3px 3px rgba(15, 23, 42, 0.3));
+}
+
+.stat-value {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1.55rem;
+  font-size: 1.45rem;
+  line-height: 1;
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.stat-track {
+  position: relative;
+  height: 18px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.2);
+  box-shadow:
+    inset 0 3px 5px rgba(15, 23, 42, 0.38),
+    0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.stat-fill {
+  position: relative;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* the glossy highlight line */
+.stat-fill::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  top: 3px;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.18));
+}
+
+.stat-energy .stat-fill {
+  background: linear-gradient(180deg, #fde68a 0%, #fbbf24 38%, #f59e0b 100%);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.7), inset 0 -3px 0 rgba(180, 83, 9, 0.35);
+}
+
+.stat-water .stat-fill {
+  background: linear-gradient(180deg, #bae6fd 0%, #38bdf8 38%, #0284c7 100%);
+  box-shadow: 0 0 12px rgba(2, 132, 199, 0.65), inset 0 -3px 0 rgba(3, 105, 161, 0.4);
+}
+
+.stat-coins .stat-fill {
+  background: linear-gradient(180deg, #fef08a 0%, #facc15 38%, #eab308 100%);
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.7), inset 0 -3px 0 rgba(161, 98, 7, 0.4);
+}
+
+/* Running low (<= 20%): the bar breathes to draw the eye */
+.stat-card.is-low .stat-fill {
+  animation: statLow 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes statLow {
+  from { filter: brightness(0.9) saturate(0.9); }
+  to { filter: brightness(1.3) saturate(1.2); }
+}
+
+/* Well: sprite + title only */
+.well-card {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 2px;
+  padding: 8px 18px 8px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 18px;
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.well-card img {
+  width: 56px;
+  height: 56px;
+  filter: drop-shadow(0 4px 4px rgba(15, 23, 42, 0.3));
+  transition: transform 0.18s ease;
+}
+
+.well-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.3rem;
   line-height: 1;
 }
 
-.season-main img {
-  width: 20px;
-  height: 20px;
-  margin-right: 6px;
+.well-card:hover {
+  transform: translateY(-2px) scale(1.05);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(186, 230, 253, 0.35));
+  box-shadow: 0 8px 18px rgba(2, 132, 199, 0.3), 0 0 16px rgba(56, 189, 248, 0.55);
 }
 
-.season-weather {
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: #4a5a4c;
+.well-card:hover img {
+  transform: scale(1.1);
 }
 
-.season-weather img {
-  width: 20px;
-  height: 20px;
+.well-card:active {
+  transform: translateY(1px) scale(0.97);
 }
 
+/* --------------------------------------------------------------------------
+   7. Hotbar: Tools + Inventory share ONE slot style
+   (wrappers are transparent; only the slots themselves are glossy controls)
+   -------------------------------------------------------------------------- */
 .rail {
-  flex: 1;
   display: flex;
-  gap: 8px;
-  padding: 8px;
-  background: var(--rail-gray);
-  border: 3px solid var(--ink);
-  border-radius: 0 0 14px 14px;
+  align-items: stretch;
+  justify-content: center;
+  gap: 28px;
+  height: 84px;
+  flex: none;
 }
 
 .bar {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
 }
 
 .inventory-slots {
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  height: 100%;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
+  height: auto;
 }
 
-.mc-slot {
+/* Shared slot look (inventory slots AND tool buttons) */
+.mc-slot,
+.tool-btn {
   position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  flex: 1 1 0;
+  max-width: 80px;
+  height: 100%;
+  padding: 0;
   display: grid;
   place-items: center;
-  background: var(--slot);
-  border: 3px solid var(--ink);
-  border-radius: 10px;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.4) 100%);
+  border: 0;
+  border-radius: 16px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -4px 0 rgba(15, 23, 42, 0.12),
+    0 6px 12px rgba(15, 23, 42, 0.22);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   user-select: none;
   transition:
-    transform 0.1s ease,
-    background-color 0.1s ease;
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
-.mc-slot img {
+.mc-slot img,
+.tool-btn img {
   width: 62%;
   height: 62%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 2px rgba(15, 23, 42, 0.3));
+  transition: transform 0.16s ease;
 }
 
 .mc-slot.has-item {
   cursor: pointer;
 }
 
-.mc-slot.has-item:hover {
-  background: #ffffff;
-  transform: translateY(-1px);
+.mc-slot.has-item:hover,
+.tool-btn:hover {
+  transform: translateY(-4px) scale(1.06);
+  background: linear-gradient(165deg, #ffffff 0%, rgba(255, 251, 235, 0.85) 100%);
+  box-shadow:
+    inset 0 2px 0 #ffffff,
+    inset 0 -4px 0 rgba(15, 23, 42, 0.1),
+    0 12px 20px rgba(15, 23, 42, 0.28),
+    0 0 14px rgba(251, 191, 36, 0.55);
 }
 
-.mc-slot.selected {
-  background: #fff3b0;
-  border-color: var(--focus);
-  box-shadow: 0 0 0 2px var(--ink);
+.mc-slot.has-item:hover img,
+.tool-btn:hover img {
+  transform: scale(1.1);
+}
+
+.mc-slot:active,
+.tool-btn:active {
+  transform: translateY(0) scale(0.96);
+}
+
+/* Selected / active: golden glowing ring + warm fill */
+.mc-slot.selected,
+.tool-btn.active {
+  background: linear-gradient(165deg, #fff7c2 0%, #fde68a 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -4px 0 rgba(180, 83, 9, 0.2),
+    var(--glow-gold);
+  transform: translateY(-3px);
+}
+
+.mc-slot.selected:hover,
+.tool-btn.active:hover {
+  transform: translateY(-5px) scale(1.06);
+  background: linear-gradient(165deg, #fff7c2 0%, #fde68a 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -4px 0 rgba(180, 83, 9, 0.2),
+    0 0 0 3px #fbbf24,
+    0 0 24px 4px rgba(251, 191, 36, 0.85);
 }
 
 .mc-slot.empty {
-  background: rgba(246, 247, 248, 0.6);
-  border-style: dashed;
-  border-color: rgba(42, 32, 24, 0.45);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.14));
+  box-shadow: inset 0 2px 6px rgba(15, 23, 42, 0.18);
 }
 
 .mc-badge {
   position: absolute;
-  right: 3px;
-  bottom: 1px;
+  right: 5px;
+  bottom: 2px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: #fff;
   text-shadow:
     1px 1px 0 var(--ink),
@@ -492,154 +1075,70 @@ select:focus-visible,
     -1px 1px 0 var(--ink);
 }
 
-/* Tool Action Selection Column */
-.bar-tools {
-  padding: 6px;
-  background: var(--rail-green);
-  border: 3px solid var(--ink);
-  border-radius: 12px;
-  margin: -2px -2px -2px 0;
-}
-
-.tool-btn {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  background: var(--slot-green);
-  border: 3px solid var(--ink);
-  border-radius: 10px;
-  transition:
-    transform 0.1s ease,
-    background-color 0.1s ease;
-}
-
-.tool-btn img {
-  width: 66%;
-  height: 66%;
-}
-
-.tool-btn:hover {
-  background: #def8e2;
-  transform: translateY(-1px);
-}
-
-.tool-btn.active {
-  background: #fff3b0;
-  border-color: var(--focus);
-  box-shadow: 0 0 0 2px var(--ink);
-}
-
 /* --------------------------------------------------------------------------
-   6. Center Column: Soil Matrix Grid & Controls
+   8. Centre Column: Action Banner & PANEL 3 (Garden Grid Matrix Frame)
    -------------------------------------------------------------------------- */
 .garden-col {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+  align-items: center;
+  gap: 10px;
 }
 
 .garden-head {
   display: flex;
   align-items: center;
   width: 100%;
-  margin-bottom: 6px;
 }
 
-.garden-foot {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: -3px;
-  position: relative;
-  z-index: 1;
-}
-
-.end-day-btn {
-  padding: 8px 18px 8px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 1.1rem;
-  background: var(--rose);
-  border: 3px solid var(--ink);
-  border-top: 0;
-  border-radius: 0 0 14px 14px;
-  transition:
-    background-color 0.1s ease,
-    transform 0.1s ease;
-}
-
-.end-day-btn:hover {
-  background: var(--rose-deep);
-}
-
-.end-day-btn img {
-  width: 26px;
-  height: 26px;
-}
-
-.end-day-btn:active {
-  transform: translateY(1px);
-}
-
-.aoe-status {
-  padding-top: 6px;
-  font-size: 0.78rem;
-  color: #4a5a4c;
-}
-
+/* Plain text over the sky; shadow keeps it legible in sun and storm */
 .action-banner-log {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-  border: none;
-  background: transparent;
-  padding: 2px 4px;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #2f1d13;
-  line-height: 1.25;
-  white-space: normal;
-  word-break: normal;
-  text-wrap: balance;
   width: 100%;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #ffffff;
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 1px 3px rgba(15, 23, 42, 0.85), 0 0 10px rgba(15, 23, 42, 0.5);
 }
 
-/* 2D Array Soil Matrix Grid Assembly */
+/* Stage = positioning context for the disaster overlay */
+.grid-stage {
+  position: relative;
+  width: 100%;
+  border-radius: 22px;
+}
+
 .soil-matrix-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
-  padding: 12px;
-  background: var(--frame);
-  border: 3px solid var(--ink);
-  border-radius: 16px 16px 0 0;
+  padding: 14px;
   width: 100%;
+  background: linear-gradient(180deg, #7a4f36 0%, var(--frame) 100%);
+  border: 4px solid var(--frame-edge);
+  border-radius: 22px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -5px 0 rgba(0, 0, 0, 0.28),
+    0 16px 30px rgba(15, 23, 42, 0.38);
   transition:
     box-shadow 0.3s ease,
-    border-color 0.3s ease;
+    border-color 0.3s ease,
+    filter 0.4s ease;
 }
 
-/* Disaster Hazard Flash Animation */
+/* Disaster Hazard Flash Animation (kept: toggled by game scripts) */
 @keyframes disasterBlink {
-  0%,
-  100% {
-    border-color: var(--ink);
-    box-shadow: none;
+  0%, 100% {
+    border-color: var(--frame-edge);
   }
-  25%,
-  75% {
+  25%, 75% {
     border-color: #ef4444;
     box-shadow:
-      0 0 20px rgba(239, 68, 68, 0.8),
+      0 0 24px rgba(239, 68, 68, 0.85),
       inset 0 0 15px rgba(239, 68, 68, 0.5);
   }
 }
@@ -660,6 +1159,7 @@ select:focus-visible,
   background: var(--tile);
   border: 3px solid var(--tile-edge);
   border-radius: 12px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.22), inset 0 -3px 0 rgba(0, 0, 0, 0.2);
   cursor: pointer;
   user-select: none;
   transition:
@@ -674,11 +1174,7 @@ select:focus-visible,
 }
 
 .soil-tile.tilled {
-  background: repeating-linear-gradient(
-    0deg,
-    var(--tile-tilled) 0 7px,
-    #7d4420 7px 10px
-  );
+  background: repeating-linear-gradient(0deg, var(--tile-tilled) 0 7px, #7d4420 7px 10px);
   border-color: var(--tile-tilled-edge);
 }
 
@@ -699,7 +1195,9 @@ select:focus-visible,
 
 .soil-tile.fertilized {
   border-color: #b57be0;
-  box-shadow: inset 0 0 0 2px rgba(181, 123, 224, 0.7);
+  box-shadow:
+    inset 0 0 0 2px rgba(181, 123, 224, 0.7),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
 }
 
 .tile-header {
@@ -738,30 +1236,420 @@ select:focus-visible,
 
 .crop-hp-bar-fill {
   height: 100%;
-  transition:
-    width 0.3s ease,
-    background-color 0.3s ease;
+  background-color: var(--bar-exp); /* JS may override inline per health level */
+  transition: width 0.3s ease, background-color 0.3s ease;
 }
 
 /* --------------------------------------------------------------------------
-   7. Right Column: Execution Log & Town Hub Panels
+   9. Garden Grid Disaster Animations
+   JS (playDisasterFx) puts ONE of these classes on #garden-stage for the
+   length of the effect:  is-earthquake | is-alien | is-green-rain | is-meteor
    -------------------------------------------------------------------------- */
-.right-col {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
+.disaster-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: 22px;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-/* Python Terminal Log Console */
+.disaster-fx .fx {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+
+.disaster-fx .fx > span {
+  position: absolute;
+  display: block;
+}
+
+.grid-stage.is-earthquake .fx-quake,
+.grid-stage.is-alien .fx-ufo,
+.grid-stage.is-green-rain .fx-acid,
+.grid-stage.is-meteor .fx-meteor {
+  display: block;
+}
+
+@keyframes fxLife {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---- Earthquake: severe translate3d jitter on the grid, rattling tiles, dust + crack ---- */
+.grid-stage.is-earthquake {
+  animation: quakeShake 1.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes quakeShake {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
+  6%   { transform: translate3d(-12px, 5px, 0) rotate(-1deg); }
+  12%  { transform: translate3d(13px, -6px, 0) rotate(1.1deg); }
+  18%  { transform: translate3d(-15px, 7px, 0) rotate(-1.2deg); }
+  26%  { transform: translate3d(14px, -4px, 0) rotate(0.9deg); }
+  34%  { transform: translate3d(-11px, 6px, 0) rotate(-0.8deg); }
+  44%  { transform: translate3d(9px, -5px, 0) rotate(0.6deg); }
+  54%  { transform: translate3d(-7px, 4px, 0) rotate(-0.5deg); }
+  66%  { transform: translate3d(5px, -3px, 0) rotate(0.3deg); }
+  78%  { transform: translate3d(-3px, 2px, 0) rotate(-0.2deg); }
+  90%  { transform: translate3d(1px, -1px, 0) rotate(0deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+
+.grid-stage.is-earthquake .soil-tile {
+  animation: tileRattle 0.12s linear 14 alternate;
+}
+
+.grid-stage.is-earthquake .soil-tile:nth-child(odd) {
+  animation-direction: alternate-reverse;
+}
+
+@keyframes tileRattle {
+  from { transform: translate3d(-2px, 1px, 0) rotate(-1.2deg); }
+  to   { transform: translate3d(2px, -2px, 0) rotate(1.2deg); }
+}
+
+html.is-quaking .app {
+  animation: appQuake 1.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes appQuake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  10% { transform: translate3d(-4px, 2px, 0); }
+  20% { transform: translate3d(5px, -2px, 0); }
+  30% { transform: translate3d(-5px, 3px, 0); }
+  45% { transform: translate3d(3px, -2px, 0); }
+  65% { transform: translate3d(-2px, 1px, 0); }
+}
+
+.fx-quake { animation: fxLife 1.7s ease-out both; }
+
+.quake-dust {
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 100%, rgba(196, 154, 108, 0.7), transparent 70%),
+    radial-gradient(ellipse 60% 30% at 15% 90%, rgba(168, 128, 84, 0.5), transparent 70%),
+    radial-gradient(ellipse 60% 30% at 85% 90%, rgba(168, 128, 84, 0.5), transparent 70%);
+  animation: dustRise 1.7s ease-out both;
+}
+
+@keyframes dustRise {
+  0% { transform: translate3d(0, 20%, 0) scale(0.9); }
+  100% { transform: translate3d(0, -8%, 0) scale(1.15); }
+}
+
+.quake-crack {
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolyline points='48,0 52,14 44,26 55,40 47,52 58,66 50,80 56,100' fill='none' stroke='%231c1208' stroke-width='1.6' stroke-linejoin='bevel'/%3E%3Cpolyline points='55,40 70,46 78,58' fill='none' stroke='%231c1208' stroke-width='1' /%3E%3Cpolyline points='47,52 33,60 26,74' fill='none' stroke='%231c1208' stroke-width='1' /%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  opacity: 0;
+  animation: crackFade 1.7s ease-out both;
+}
+
+@keyframes crackFade {
+  0%, 10% { opacity: 0; }
+  25%, 70% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+/* ---- Alien Escape: glowing UFO beam pulsing down onto the grid ---- */
+.fx-ufo {
+  animation: fxLife 3s ease-in-out both;
+  background: radial-gradient(ellipse 80% 70% at 50% 0%, rgba(6, 78, 59, 0.55), rgba(2, 20, 24, 0.12) 80%);
+}
+
+.ufo-beam {
+  top: 10%;
+  left: 50%;
+  width: 80%;
+  height: 92%;
+  margin-left: -40%;
+  clip-path: polygon(41% 0, 59% 0, 100% 100%, 0 100%);
+  background: linear-gradient(180deg, rgba(220, 255, 235, 0.95) 0%, rgba(110, 231, 183, 0.6) 35%, rgba(52, 211, 153, 0.2) 100%);
+  mix-blend-mode: screen;
+  transform-origin: 50% 0;
+  animation:
+    beamIn 3s ease-out both,
+    beamPulse 0.8s ease-in-out infinite alternate;
+}
+
+/* rising sparkles inside the beam */
+.ufo-beam::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 1.5px, transparent 2.5px);
+  background-size: 22px 31px;
+  animation: beamSparkle 0.9s linear infinite;
+}
+
+@keyframes beamIn {
+  0%, 12% { transform: scaleY(0); }
+  30%, 100% { transform: scaleY(1); }
+}
+
+@keyframes beamPulse {
+  from { filter: brightness(0.85); }
+  to { filter: brightness(1.4); }
+}
+
+@keyframes beamSparkle {
+  from { background-position: 0 0; }
+  to { background-position: 0 -310px; }
+}
+
+.ufo-saucer {
+  top: 2%;
+  left: 50%;
+  width: 34%;
+  margin-left: -17%;
+  aspect-ratio: 3.4 / 1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 25%, #f1f5f9 0%, #94a3b8 55%, #475569 100%);
+  box-shadow: 0 6px 14px rgba(2, 20, 24, 0.5), 0 0 22px rgba(110, 231, 183, 0.8);
+  animation: ufoFlight 3s ease-in-out both;
+}
+
+/* glass dome */
+.ufo-saucer::before {
+  content: "";
+  position: absolute;
+  left: 28%;
+  right: 28%;
+  top: -62%;
+  height: 92%;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: radial-gradient(circle at 38% 30%, #dcfce7 0%, #4ade80 55%, #14532d 100%);
+  box-shadow: 0 0 12px rgba(134, 239, 172, 0.85);
+}
+
+/* blinking rim lights */
+.ufo-saucer::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 24%;
+  height: 16%;
+  background: radial-gradient(circle, #fef08a 0 28%, transparent 34%) 0 0 / 16.6% 100% repeat-x;
+  animation: rimBlink 0.5s steps(1, end) infinite;
+}
+
+@keyframes rimBlink {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes ufoFlight {
+  0%   { transform: translate3d(-120%, -160%, 0) rotate(-14deg); }
+  22%  { transform: translate3d(0, 0, 0) rotate(5deg); }
+  38%  { transform: translate3d(0, 2%, 0) rotate(-4deg); }
+  56%  { transform: translate3d(0, 0, 0) rotate(3deg); }
+  74%  { transform: translate3d(0, 2%, 0) rotate(-2deg); }
+  100% { transform: translate3d(120%, -170%, 0) rotate(12deg); }
+}
+
+/* ---- Green Rain / Windstorm: lime acid streaks, wind sweep, swaying tiles ---- */
+.grid-stage.is-green-rain .soil-matrix-grid {
+  filter: hue-rotate(38deg) saturate(1.25);
+}
+
+.fx-acid {
+  animation: fxLife 3s ease-in-out both;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(163, 230, 53, 0.5), rgba(132, 204, 22, 0.14) 65%, transparent 100%);
+}
+
+.acid-rain {
+  inset: -10%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='220' viewBox='0 0 140 220'%3E%3Cg fill='none' stroke='%23bef264' stroke-opacity='.85' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M118 14l-10 32M46 66l-10 32M126 118l-10 32M72 164l-10 32M20 24l-10 32'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 140px 220px;
+  animation: acidFall 0.45s linear infinite;
+}
+
+@keyframes acidFall {
+  from { background-position: 0 0; }
+  to { background-position: -140px 440px; }
+}
+
+.acid-wind {
+  inset: 0 -60%;
+  background: repeating-linear-gradient(
+    100deg,
+    rgba(217, 249, 157, 0) 0 36px,
+    rgba(217, 249, 157, 0.3) 58px,
+    rgba(217, 249, 157, 0) 88px
+  );
+  animation: windSweep 3s linear both;
+}
+
+@keyframes windSweep {
+  from { transform: translate3d(-28%, 0, 0); }
+  to { transform: translate3d(28%, 0, 0); }
+}
+
+.grid-stage.is-green-rain .soil-tile {
+  animation: windSway 0.8s ease-in-out infinite alternate;
+}
+
+.grid-stage.is-green-rain .soil-tile:nth-child(5n + 1) { animation-delay: -0.1s; }
+.grid-stage.is-green-rain .soil-tile:nth-child(5n + 2) { animation-delay: -0.25s; }
+.grid-stage.is-green-rain .soil-tile:nth-child(5n + 3) { animation-delay: -0.4s; }
+.grid-stage.is-green-rain .soil-tile:nth-child(5n + 4) { animation-delay: -0.55s; }
+.grid-stage.is-green-rain .soil-tile:nth-child(5n) { animation-delay: -0.7s; }
+
+@keyframes windSway {
+  from { transform: translate3d(-3px, 0, 0) skewX(-4deg); }
+  to { transform: translate3d(4px, 1px, 0) skewX(5deg) rotate(0.6deg); }
+}
+
+/* ---- Meteorite Strike: fiery flash, falling streaks, impact bloom + bump ---- */
+.fx-meteor {
+  animation: fxLife 2.6s ease-out both;
+}
+
+.meteor-flash {
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(circle at 52% 55%, rgba(255, 247, 200, 0.96) 0%, rgba(251, 146, 60, 0.82) 30%, rgba(220, 38, 38, 0.56) 62%, rgba(127, 29, 29, 0) 100%);
+  animation: meteorFlash 2.6s ease-out both;
+}
+
+@keyframes meteorFlash {
+  0%, 55% { opacity: 0; }
+  59% { opacity: 1; }
+  76% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
+.meteor {
+  top: -40%;
+  left: var(--l0);
+  width: var(--w);
+  height: var(--h);
+  border-radius: 999px;
+  opacity: 0;
+  transform: rotate(17deg);
+  transform-origin: 50% 100%;
+  background: linear-gradient(0deg, #ffffff 0%, #fed7aa 14%, rgba(249, 115, 22, 0.85) 42%, rgba(220, 38, 38, 0.35) 75%, transparent 100%);
+  filter: drop-shadow(0 0 8px rgba(251, 146, 60, 0.95));
+  animation: meteorFall 1.05s cubic-bezier(0.5, 0, 0.9, 0.55) var(--delay) both;
+}
+
+/* glowing head */
+.meteor::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  width: calc(var(--w) * 2.4);
+  height: calc(var(--w) * 2.4);
+  margin-left: calc(var(--w) * -1.2);
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, #fdba74 45%, rgba(239, 68, 68, 0) 75%);
+}
+
+.meteor.m1 { --l0: 80%; --l1: 52%; --w: 9px; --h: 36%; --delay: 0.5s; }
+.meteor.m2 { --l0: 98%; --l1: 74%; --w: 5px; --h: 25%; --delay: 0.1s; }
+.meteor.m3 { --l0: 62%; --l1: 30%; --w: 4px; --h: 21%; --delay: 0.3s; }
+
+@keyframes meteorFall {
+  0%   { top: -40%; left: var(--l0); opacity: 0; }
+  10%  { opacity: 1; }
+  88%  { top: 48%; left: var(--l1); opacity: 1; }
+  100% { top: 54%; left: var(--l1); opacity: 0; }
+}
+
+.meteor-impact {
+  left: 52%;
+  top: 54%;
+  width: 46%;
+  aspect-ratio: 1;
+  margin: -23% 0 0 -23%;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.96) 0 9%, rgba(253, 186, 116, 0.9) 20%, rgba(239, 68, 68, 0.55) 44%, transparent 70%);
+  animation: impactBloom 1.1s ease-out 1.5s both;
+}
+
+/* starburst sparks */
+.meteor-impact::before {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(254, 215, 170, 0.9) 0 2.5deg, transparent 2.5deg 16deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 28%, #000 40%, transparent 70%);
+  mask-image: radial-gradient(circle, transparent 28%, #000 40%, transparent 70%);
+}
+
+/* shockwave ring */
+.meteor-impact::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  border: 3px solid rgba(254, 215, 170, 0.9);
+  animation: impactRing 1.1s ease-out 1.5s both;
+}
+
+@keyframes impactBloom {
+  0% { opacity: 1; transform: scale(0.2); }
+  55% { opacity: 0.95; }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+
+@keyframes impactRing {
+  0% { opacity: 1; transform: scale(0.3); }
+  100% { opacity: 0; transform: scale(1.9); }
+}
+
+.grid-stage.is-meteor {
+  animation: meteorBump 2.6s linear both;
+}
+
+.grid-stage.is-meteor .soil-matrix-grid {
+  animation: meteorHeat 2.6s ease-out both;
+}
+
+@keyframes meteorBump {
+  0%, 57% { transform: translate3d(0, 0, 0) scale(1); }
+  60% { transform: translate3d(0, 8px, 0) scale(0.99); }
+  64% { transform: translate3d(-7px, -4px, 0) scale(1.005); }
+  69% { transform: translate3d(6px, 3px, 0); }
+  75% { transform: translate3d(-3px, 1px, 0); }
+  85%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes meteorHeat {
+  0%, 55% { box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.28), inset 0 -5px 0 rgba(0, 0, 0, 0.28), 0 16px 30px rgba(15, 23, 42, 0.38); }
+  62% { box-shadow: 0 0 40px 10px rgba(249, 115, 22, 0.95), inset 0 0 30px rgba(239, 68, 68, 0.8); }
+  100% { box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.28), inset 0 -5px 0 rgba(0, 0, 0, 0.28), 0 16px 30px rgba(15, 23, 42, 0.38); }
+}
+
+/* --------------------------------------------------------------------------
+   10. Right Column: PANEL 4 (Trace Log) & PANEL 5 (Quests / Shop / Sell)
+   -------------------------------------------------------------------------- */
+.right-col {
+  gap: 16px;
+}
+
+/* PANEL 4: dark glass terminal */
 .log-panel {
-  padding: 12px;
-  background: var(--butter);
-  border: 3px solid var(--ink);
-  border-radius: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.86) 0%, rgba(30, 41, 59, 0.78) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 24px;
+  box-shadow:
+    0 14px 34px rgba(15, 23, 42, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
 }
 
 .panel-title {
@@ -769,65 +1657,76 @@ select:focus-visible,
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 1.05rem;
+  color: #fde68a;
 }
 
 .console {
   height: 230px;
-  padding: 12px;
+  padding: 2px 4px 2px 0;
   overflow-y: auto;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1.5;
   color: #ffc247;
-  background: #1d1c1b;
-  border: 3px solid var(--ink);
-  border-radius: 12px;
+  background: transparent;
+  border: 0;
 }
 
-/* Town Tabs Component (Quests / Shop / Sell) */
+/* PANEL 5: Quests / Shop / Sell container */
 .town {
   display: flex;
   flex-direction: column;
+  padding: 12px 14px 14px;
+  background: linear-gradient(180deg, rgba(236, 253, 245, 0.9) 0%, rgba(209, 250, 229, 0.68) 100%);
+  border: 2px solid var(--glass-edge);
+  border-radius: 24px;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
 }
 
 .tabs {
   display: flex;
-  gap: 2px;
-  margin: 0 0 -3px 14px;
-  position: relative;
-  z-index: 1;
+  gap: 6px;
+  margin: 0 0 10px;
 }
 
 .tab {
-  padding: 6px 18px;
+  padding: 7px 18px;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 0.95rem;
-  background: #f7f8f2;
-  border: 3px solid var(--ink);
-  border-bottom: 3px solid var(--ink);
-  border-radius: 10px 10px 0 0;
-  transition: background-color 0.1s ease;
+  font-size: 0.98rem;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .tab:hover {
-  background: #1fd08a94;
+  background: rgba(255, 255, 255, 0.7);
+  transform: translateY(-1px);
 }
 
 .tab[aria-selected="true"] {
-  background: var(--leaf);
-  border-bottom-color: var(--leaf);
+  color: #ffffff;
+  text-shadow: 0 1px 0 rgba(6, 78, 59, 0.5);
+  background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+  box-shadow:
+    0 6px 12px rgba(22, 163, 74, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 0 rgba(6, 78, 59, 0.25);
 }
 
 .tab-body {
-  background: var(--accent-green, #b6f0b4);
-  border: 3px solid var(--panel-border, #2c2c2c);
-  border-radius: 0 16px 16px 16px;
-  padding: 12px;
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: hidden;
+  padding: 2px 2px 0;
+  background: transparent;
+  border: 0;
 }
 
 .selected-line {
@@ -848,11 +1747,9 @@ select:focus-visible,
 }
 
 #panel-quests.tab-panel {
-  display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 12px;
-  width: 100%;
+  gap: 14px;
 }
 
 /* Wumbus NPC Quest HUD Component */
@@ -861,12 +1758,12 @@ select:focus-visible,
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .npc-portrait {
   flex: none;
-  width: 78px;
+  width: 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -876,22 +1773,20 @@ select:focus-visible,
 .npc-portrait img {
   width: 80px;
   height: 90px;
-  padding: 4px;
-  background: #7fdc92;
-  border: 3px solid var(--ink);
-  border-radius: 10px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 5px rgba(15, 23, 42, 0.32));
 }
 
 .npc-name {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
 }
 
 .npc-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .npc-title-row {
@@ -903,40 +1798,56 @@ select:focus-visible,
 
 .npc-title {
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
 .level-badge {
-  padding: 1px 7px;
+  padding: 2px 9px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 0.75rem;
-  background: #ffd84a;
-  border: 2px solid var(--ink);
-  border-radius: 6px;
+  font-size: 0.76rem;
+  background: linear-gradient(180deg, #fde68a, #fbbf24);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 4px rgba(180, 83, 9, 0.3);
   cursor: help;
 }
 
 .npc-quest {
   margin: 2px 0 0 0;
-  font-size: 0.85rem;
-  line-height: 1.2;
+  font-size: 0.86rem;
+  line-height: 1.25;
   font-style: italic;
 }
 
+/* EXP bar: same glossy language as the stat bars */
 .exp-track {
-  height: 8px;
-  background: #f3fbf1;
-  border: 2px solid var(--ink, #1c1917);
-  border-radius: 5px;
-  overflow: hidden;
+  height: 11px;
   margin-top: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.16);
+  border: 0;
+  box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.3);
 }
 
 .exp-fill {
+  position: relative;
   height: 100%;
-  background: #2f9e4f;
-  transition: width 0.3s ease;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #86efac 0%, #22c55e 50%, #16a34a 100%);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.55);
+  transition: width 0.4s ease;
+}
+
+.exp-fill::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 2px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.1));
 }
 
 .panel-copy {
@@ -951,57 +1862,59 @@ select:focus-visible,
   margin-top: 2px;
 }
 
-/* Reusable Styled Action Buttons */
+/* Reusable glossy action buttons */
 .btn {
-  padding: 6px 18px;
+  padding: 8px 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   font-weight: 800;
-  font-size: 0.9rem;
-  background: #ffffff;
-  border: 3px solid var(--ink);
-  border-radius: 10px;
-  box-shadow: 0 3px 0 rgba(42, 32, 24, 0.35);
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: linear-gradient(180deg, #ffffff, #e2e8f0);
+  border: 0;
+  border-radius: 14px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -3px 0 rgba(15, 23, 42, 0.16),
+    0 6px 12px rgba(15, 23, 42, 0.22);
   transition:
-    transform 0.1s ease,
-    filter 0.1s ease;
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .btn img {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 .btn:hover {
-  filter: brightness(1.06);
-  transform: translateY(-1px);
+  filter: brightness(1.07);
+  transform: translateY(-2px) scale(1.04);
 }
 
 .btn:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 rgba(42, 32, 24, 0.35);
+  transform: translateY(2px) scale(0.97);
+  box-shadow:
+    inset 0 3px 6px rgba(15, 23, 42, 0.3),
+    0 1px 2px rgba(15, 23, 42, 0.2);
 }
 
-.btn-green {
-  background: var(--leaf-deep);
-}
-
-.btn-gold {
-  background: #f5c04a;
-}
-
-.btn-purple {
-  background: #cfb0f5;
-}
+.btn-green { background: linear-gradient(180deg, #86efac, #22c55e); color: #052e16; }
+.btn-gold { background: linear-gradient(180deg, #fde68a, #f59e0b); color: #422006; }
+.btn-purple { background: linear-gradient(180deg, #e9d5ff, #a855f7); color: #3b0764; }
 
 /* --------------------------------------------------------------------------
-   8. Global Modal Overlay System
+   11. Modal Popups (one floating glass card each; inner sections are borderless)
    -------------------------------------------------------------------------- */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(18, 28, 22, 0.78);
+  background: rgba(15, 23, 42, 0.58);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   display: none;
   justify-content: center;
   align-items: center;
@@ -1016,35 +1929,27 @@ select:focus-visible,
 .modal-card {
   width: 100%;
   max-height: 92vh;
-  padding: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: var(--mint);
-  border: 3px solid var(--ink);
-  border-radius: 18px;
-  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(236, 253, 245, 0.92) 100%);
+  border: 2px solid #ffffff;
+  border-radius: 26px;
+  box-shadow:
+    0 28px 64px rgba(15, 23, 42, 0.5),
+    inset 0 1px 0 #ffffff;
 }
 
-.modal-sm {
-  max-width: 460px;
-}
-
-.modal-md {
-  max-width: 640px;
-}
-
-.modal-lg {
-  max-width: 900px;
-}
+.modal-sm { max-width: 460px; }
+.modal-md { max-width: 640px; }
+.modal-lg { max-width: 900px; }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding-bottom: 10px;
-  border-bottom: 3px solid rgba(42, 32, 24, 0.2);
 }
 
 .modal-title {
@@ -1054,58 +1959,75 @@ select:focus-visible,
   gap: 10px;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 1.25rem;
+  font-size: 1.3rem;
+  color: var(--frame);
 }
 
 .modal-title img {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
 }
 
-.modal-close {
-  width: 34px;
-  height: 34px;
+.modal-close,
+.modal-close-btn {
+  width: 36px;
+  height: 36px;
   padding: 0;
   display: grid;
   place-items: center;
-  background: #fff;
-  border: 3px solid var(--ink);
-  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.07);
+  border: 0;
+  border-radius: 50%;
+  transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
-.modal-close img {
-  width: 20px;
-  height: 20px;
+.modal-close img,
+.modal-close-btn img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
 
-.modal-close:hover {
-  background: #ffe1e1;
+.modal-close:hover,
+.modal-close-btn:hover {
+  background: #fecaca;
+  transform: rotate(90deg) scale(1.08);
 }
 
 .modal-scroll {
   overflow-y: auto;
 }
 
-/* Game Mechanics & Rules Guide Modal */
-.rules {
+/* Mechanics guide: sections separated by space, not boxes */
+.guide-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  font-size: 0.95rem;
-  line-height: 1.5;
+  gap: 18px;
+  max-height: 70vh;
+  padding-right: 8px;
 }
 
-.rules p {
-  margin: 0;
+.guide-heading {
+  margin: 0 0 8px 0;
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  color: #2f5a3a;
 }
 
-.rules img {
-  flex: none;
-  width: 28px;
-  height: 28px;
+.guide-heading img {
+  width: 24px;
+  height: 24px;
+}
+
+.guide-list {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--ink);
 }
 
 /* Python Code Inspector Modal */
@@ -1123,34 +2045,34 @@ select:focus-visible,
 
 .select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 9px 12px;
   font-family: var(--font-mono);
   font-size: 0.8rem;
   color: var(--ink);
   background: #fff;
-  border: 3px solid var(--ink);
-  border-radius: 10px;
+  border: 2px solid rgba(42, 32, 24, 0.25);
+  border-radius: 12px;
 }
 
 .code-viewer {
   margin: 0;
   height: 56vh;
-  padding: 12px;
+  padding: 14px;
   overflow: auto;
   font-family: var(--font-mono);
   font-size: 0.78rem;
   line-height: 1.6;
   color: #b8f5b0;
   background: #1d1c1b;
-  border: 3px solid var(--ink);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 16px;
 }
 
-/* Frog Seed Shop Modal */
+/* Shop Modal */
 .shop-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   overflow-y: auto;
 }
 
@@ -1159,15 +2081,20 @@ select:focus-visible,
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: #fffbe6;
-  border: 3px solid var(--ink);
-  border-radius: 12px;
+  background: transparent;
+  border: 0;
+  border-radius: 14px;
+  transition: background-color 0.15s ease;
+}
+
+.shop-item:hover {
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .shop-item-icon {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
 }
 
 .shop-item-text {
@@ -1177,24 +2104,23 @@ select:focus-visible,
 
 .shop-item-name {
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
 .shop-item-desc {
   margin-top: 2px;
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   color: #5b564a;
 }
 
 .price-btn {
   flex: none;
-  padding: 5px 12px;
+  padding: 6px 14px;
 }
 
 .shop-seasonal-section {
-  margin-top: 6px;
-  padding-top: 12px;
-  border-top: 3px solid rgba(42, 32, 24, 0.2);
+  margin-top: 8px;
+  padding-top: 8px;
 }
 
 .shop-season-header {
@@ -1215,7 +2141,7 @@ select:focus-visible,
 .shop-crop-grid {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   max-height: 150px;
   overflow-y: auto;
 }
@@ -1227,9 +2153,13 @@ select:focus-visible,
   gap: 10px;
   padding: 6px 10px;
   font-size: 0.85rem;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+}
+
+.shop-crop-badge:hover {
   background: rgba(255, 255, 255, 0.7);
-  border: 2px solid rgba(42, 32, 24, 0.4);
-  border-radius: 8px;
 }
 
 .shop-crop-badge-left {
@@ -1264,36 +2194,17 @@ select:focus-visible,
 }
 
 /* Item Rarity Text Modifiers */
-.rarity-common {
-  color: #5f6670;
-  font-weight: 800;
-}
-
-.rarity-uncommon {
-  color: #1f6fb5;
-  font-weight: 800;
-}
-
-.rarity-rare {
-  color: #8a3fc4;
-  font-weight: 800;
-}
+.rarity-common { color: #5f6670; font-weight: 800; }
+.rarity-uncommon { color: #1f6fb5; font-weight: 800; }
+.rarity-rare { color: #8a3fc4; font-weight: 800; }
 
 /* --------------------------------------------------------------------------
-   9. Weather Channel 30-Day BST Forecast Modal
+   12. Weather Channel 30-Day BST Forecast Modal
    -------------------------------------------------------------------------- */
 .forecast-modal-theme {
-  background-color: #dbebe2;
-  border: 3px solid #2a2018;
-  border-radius: 20px;
-  max-width: 620px;
+  max-width: 640px;
   width: 95%;
-  max-height: 85vh;
-  padding: 16px;
-  box-shadow: 0 10px 0 rgba(42, 32, 24, 0.25);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  max-height: 86vh;
 }
 
 .forecast-header-left {
@@ -1303,55 +2214,42 @@ select:focus-visible,
 }
 
 .tv-modal-icon {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   object-fit: contain;
   image-rendering: pixelated;
 }
 
 .modal-title-text h2 {
-  font-size: 1.25rem;
+  margin: 0;
+  font-size: 1.3rem;
   font-weight: 900;
-  color: #2a2018;
+  color: var(--ink);
   line-height: 1.1;
 }
 
 .modal-subtitle {
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: #557766;
-}
-
-.modal-close-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 2px;
-}
-
-.modal-close-btn img {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
 }
 
 .modal-body-content {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
-/* Tomorrow Forecast Radar Card */
+/* Tomorrow's radar: no card, just a headline row and a quote */
 .forecast-radar-card {
-  background: #ffffff;
-  border: 2px solid #2a2018;
-  border-radius: 14px;
-  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding: 2px 0;
+  background: transparent;
+  border: 0;
 }
 
 .radar-card-head {
@@ -1361,32 +2259,26 @@ select:focus-visible,
 }
 
 .radar-tag {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 900;
-  color: #2a2018;
-  letter-spacing: 0.5px;
+  color: var(--ink);
+  letter-spacing: 0.4px;
 }
 
 .risk-badge {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 900;
-  padding: 3px 10px;
-  border-radius: 10px;
-  border: 2px solid #2a2018;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
-.risk-badge.risk-safe {
-  background: #9ee8b2;
-  color: #1a4a2a;
-}
-
-.risk-badge.risk-danger {
-  background: #fba1a1;
-  color: #6a1a1a;
-}
+.risk-badge.risk-safe { background: linear-gradient(180deg, #bbf7d0, #4ade80); color: #14532d; }
+.risk-badge.risk-danger { background: linear-gradient(180deg, #fecaca, #f87171); color: #7f1d1d; }
 
 .radar-dialogue {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: #333333;
   font-style: italic;
@@ -1408,63 +2300,61 @@ select:focus-visible,
 
 .calendar-title {
   font-weight: 900;
-  font-size: 0.9rem;
-  color: #2a2018;
+  font-size: 0.92rem;
+  color: var(--ink);
 }
 
 .dsa-badge {
   font-size: 0.7rem;
   font-weight: 800;
-  background: #ffffff;
-  border: 1px solid #2a2018;
-  padding: 2px 8px;
-  border-radius: 8px;
-  color: #555555;
+  background: rgba(15, 23, 42, 0.08);
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #475569;
 }
 
 .forecast-calendar-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 6px;
-  background-color: #c0ded0;
-  border: 2px solid #2a2018;
-  border-radius: 14px;
-  padding: 10px;
-  max-height: 240px;
+  padding: 2px;
+  max-height: 260px;
   overflow-y: auto;
+  background: transparent;
+  border: 0;
 }
 
 .forecast-day-card {
-  background-color: #ffffff;
-  border: 2px solid #2a2018;
-  border-radius: 10px;
-  padding: 6px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   gap: 2px;
+  min-height: 62px;
+  padding: 6px 4px;
   text-align: center;
-  min-height: 60px;
-  transition: transform 0.1s ease;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(226, 232, 240, 0.7));
+  border: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 #fff, 0 2px 5px rgba(15, 23, 42, 0.14);
+  transition: transform 0.12s ease;
 }
 
-.forecast-day-card:hover {
-  transform: scale(1.05);
-}
+.forecast-day-card:hover { transform: scale(1.06); }
 
 .forecast-day-card.active-today {
-  background-color: #fded96;
+  background: linear-gradient(180deg, #fef9c3, #fde047);
+  box-shadow: inset 0 1px 0 #fff, 0 0 12px rgba(250, 204, 21, 0.7);
 }
 
 .forecast-day-card.danger-day {
-  background-color: #fba1a1;
+  background: linear-gradient(180deg, #fee2e2, #fca5a5);
 }
 
 .forecast-day-card .day-num {
   font-size: 0.65rem;
   font-weight: 900;
-  color: #2a2018;
+  color: var(--ink);
 }
 
 .forecast-day-card .day-icon {
@@ -1475,86 +2365,145 @@ select:focus-visible,
 }
 
 .forecast-day-card .day-status {
+  max-width: 100%;
   font-size: 0.6rem;
   font-weight: 800;
   color: #444444;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
 }
 
 /* --------------------------------------------------------------------------
-   10. Responsive Layout Media Queries & Accessibility Reductions
+   13. Layout Modes & Responsive Rules
    -------------------------------------------------------------------------- */
-@media (max-width: 960px) {
+
+/* Roomy screens: everything fits one viewport, the grid stays square */
+@media (min-width: 1000px) and (min-height: 660px) {
+  body {
+    padding: 14px;
+  }
+
+  .app,
+  .app-container {
+    height: calc(100vh - 28px);
+    height: calc(100dvh - 28px);
+    gap: 12px;
+  }
+
+  .topbar,
+  .rail {
+    flex: none;
+  }
+
+  .board {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .left-col,
+  .right-col,
+  .garden-col {
+    min-height: 0;
+  }
+
+  .grid-stage {
+    width: min(100%, calc(100dvh - 318px));
+    min-width: 260px;
+  }
+
+  .log-panel {
+    flex: 1.05 1 0;
+    min-height: 0;
+  }
+
+  .console {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+  }
+
+  .town {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .tab-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+/* Tighter headers on mid-width desktops */
+@media (max-width: 1180px) {
+  .brand-text h1 { font-size: 1.65rem; }
+  .menu-link { font-size: 0.95rem; padding: 7px 10px 7px 8px; }
+  .end-day-btn { font-size: 1.15rem; padding: 11px 18px 11px 12px; }
+  .topbar { gap: 10px 14px; padding: 10px 14px; }
+  .board { grid-template-columns: 210px minmax(300px, 1fr) minmax(290px, 360px); }
+}
+
+/* Tablet & phone: single column flow */
+@media (max-width: 999px) {
+  .topbar { justify-content: center; }
+
   .board {
     grid-template-columns: 1fr;
   }
 
-  .left-col {
-    order: 1;
+  .left-col { order: 1; }
+  .garden-col { order: 2; }
+  .right-col { order: 3; }
+
+  .stat-strip {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
   }
 
-  .garden-col {
-    order: 2;
+  .stat-strip .stat-card {
+    flex: 1 1 120px;
   }
 
-  .right-col {
-    order: 3;
+  .well-card {
+    flex: 0 0 auto;
+  }
+
+  .grid-stage {
+    max-width: 560px;
   }
 
   .rail {
     flex-direction: column;
-  }
-
-  .bar {
-    flex-direction: row;
-  }
-
-  .inventory-slots {
-    flex-direction: row;
     height: auto;
+    gap: 12px;
   }
 
-  .inventory-slots .mc-slot {
-    flex: 1;
-    width: auto;
+  .bar,
+  .inventory-slots {
+    flex-wrap: wrap;
   }
 
-  .bar-tools {
-    margin: 0;
-  }
-
-  .bar-tools .tool-btn {
-    flex: 1;
-    width: auto;
+  .mc-slot,
+  .tool-btn {
+    height: auto;
+    aspect-ratio: 1 / 1;
+    flex: 1 1 56px;
+    max-width: 76px;
   }
 }
 
 @media (max-width: 560px) {
-  body {
-    padding: 10px;
-  }
+  body { padding: 10px; }
 
-  .app {
-    padding: 12px;
-  }
+  .topbar { padding: 10px; }
 
-  .stat-strip {
-    width: 100%;
-    flex-wrap: wrap;
-  }
+  .brand-text h1 { font-size: 1.45rem; }
 
-  .stat-card {
-    flex: 1;
-    min-width: 80px;
-  }
-
-  .well-card {
-    flex-basis: 100%;
-    justify-content: center;
-  }
+  .soil-matrix-grid { padding: 10px; gap: 6px; }
 }
 
 /* Accessibility: Motion Preference Handling */
@@ -1570,7 +2519,38 @@ select:focus-visible,
     border-color: #ef4444;
   }
 
-  .tv-power-led.has-danger {
+  .tv-power-led.has-danger,
+  .stat-card.is-low .stat-fill {
     animation: none;
+  }
+
+  body::before,
+  body::after,
+  html::before,
+  html::after,
+  .rain,
+  .lightning-flash,
+  .lightning-bolt {
+    animation: none;
+  }
+
+  /* Disasters: skip the motion, show a calm static warning ring instead */
+  .disaster-fx .fx {
+    display: none !important;
+  }
+
+  .grid-stage.is-earthquake,
+  .grid-stage.is-meteor,
+  html.is-quaking .app,
+  .grid-stage .soil-tile,
+  .grid-stage.is-meteor .soil-matrix-grid {
+    animation: none !important;
+  }
+
+  .grid-stage.is-earthquake .soil-matrix-grid,
+  .grid-stage.is-alien .soil-matrix-grid,
+  .grid-stage.is-green-rain .soil-matrix-grid,
+  .grid-stage.is-meteor .soil-matrix-grid {
+    box-shadow: 0 0 0 4px #ef4444, 0 0 24px rgba(239, 68, 68, 0.7);
   }
 }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="weather-sunny" data-weather="sunny">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,134 +15,139 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Main Application Wrapper -->
+    <!-- ====================================================================
+         0. Atmosphere Layers (weather is driven by <html class="weather-sunny|weather-rainy">)
+            .sky-gloom  : slate veil over the scenery, sits BEHIND the game (z 0)
+            .weather-fx : rain + lightning, sits OVER the game, never blocks clicks (z 2)
+         ==================================================================== -->
+    <div class="sky-gloom" aria-hidden="true"></div>
+    <div class="weather-fx" aria-hidden="true">
+        <div class="rain rain-far"></div>
+        <div class="rain rain-near"></div>
+        <div class="lightning-flash"></div>
+        <div class="lightning-bolt bolt-a"></div>
+        <div class="lightning-bolt bolt-b"></div>
+    </div>
+
+    <!-- Main Application Wrapper (no background, no border: the sky shows through) -->
     <div class="app">
 
         <!-- ====================================================================
-             1. Top Navigation Bar & Global Player Status Header
+             1. PANEL 1 - Header: brand, season + weather, guide links, TV, End Day
              ==================================================================== -->
         <header class="topbar">
             <!-- Brand Logo & Title -->
             <div class="brand">
                 <img class="brand-logo" src="https://stardewvalleywiki.com/mediawiki/images/b/b8/Golden_Scroll.png" alt="Golden Scroll Logo">
-                
                 <div class="brand-text">
                     <h1>Wumbus' Garden</h1>
-                    <span class="version">v0.7.0</span>
-                </div>
-
-                    <!-- Round Quick-Action Menu Buttons (Mechanics Guide & Python Code Viewer) -->
-                <div class="menu-buttons">
-                    <button type="button" class="round-btn" onclick="openModal('mechanics-modal')" title="Mechanics Guide" aria-label="Mechanics Guide">
-                        <img src="https://stardewvalleywiki.com/mediawiki/images/d/df/Book_of_Mysteries.png" alt="Book of Mysteries Icon">
-                    </button>
-                    <button type="button" class="round-btn" onclick="openModal('code-modal')" title="Module Reference" aria-label="Module Reference">
-                        <img src="https://stardewvalleywiki.com/mediawiki/images/1/15/Monster_Compendium.png" alt="Monster Compendium Icon">
-                    </button>
-                </div>
-
-                <!-- Weather Channel TV Set Trigger Button (Opens 30-Day BST Forecast Modal) -->
-                <button class="tv-set-btn" type="button" id="tv-forecast-btn" title="Weather Channel (30-Day Forecast)" onclick="openForecastModal()">
-                    <div class="tv-screen">
-                        <img id="tv-screen-gif" src="https://stardewvalleywiki.com/mediawiki/images/8/8a/LuckStarMax.gif" alt="Weather Channel TV Screen" />
-                    </div>
-                    <!-- Top-Right Red/Green LED Alert Indicator Dot -->
-                    <span id="tv-alert-dot" class="tv-power-led"></span>
-                </button>
-            </div>
-
-
-
-            <!-- Player Resource Bar (Well / Water Bucket / Energy / Coins) -->
-            <div class="stat-strip">
-                <!-- Interactive Well Component for Water Refills -->
-                <button type="button" id="well-btn" class="stat-card well-card" onclick="refillWaterAtWell()" title="Select the Water Can, then click the Well to refill (10 energy)">
-                    <img src="https://stardewvalleywiki.com/mediawiki/images/4/41/Well.png" alt="Water Well">
-                    <span class="well-text">
-                        <span class="well-name">Well</span>
-                        <span class="well-hint">Refill: 10 energy</span>
-                    </span>
-                </button>
-                
-                <!-- Water Bucket Capacity Counter -->
-                <div class="stat-card" title="Water capacity">
-                    <img src="https://stardewvalleywiki.com/mediawiki/images/b/bf/Frozen_Geode.png" alt="Water Bucket">
-                    <span id="stat-bucket" class="stat-value">5/5</span>
-                    <span class="sr-only">Water capacity</span>
-                </div>
-                
-                <!-- Player Energy Counter -->
-                <div class="stat-card" title="Energy">
-                    <img src="https://stardewvalleywiki.com/mediawiki/images/archive/d/df/20191209011954%21Max_Energy.png" alt="Energy Stardrop">
-                    <span id="stat-energy" class="stat-value">100</span>
-                    <span class="sr-only">Energy</span>
-                </div>
-                
-                <!-- Player Gold Coins Counter -->
-                <div class="stat-card" title="Coins">
-                    <img src="https://stardewvalleywiki.com/mediawiki/images/1/10/Gold.png" alt="Gold Coins">
-                    <span id="stat-coins" class="stat-value">200</span>
-                    <span class="sr-only">Coins</span>
+                    <span class="version">v0.7.1</span>
                 </div>
             </div>
+
+            <!-- Season & Active Weather (no panel chrome) -->
+            <div class="season-badge">
+                <div class="season-main" id="stat-season">
+                    <img src="https://stardewvalleywiki.com/mediawiki/images/9/9c/Spring.png" alt="Spring Season Icon">
+                    Spring 01
+                </div>
+                <div class="season-weather">
+                    <img id="weather-icon" src="https://stardewvalleywiki.com/mediawiki/images/d/d2/StatusSun.png" alt="Sunny Weather Icon">
+                    <span id="stat-weather">Sunny</span>
+                </div>
+                <!-- Tool AOE Tier Level Display -->
+                <span id="aoe-status" class="aoe-status">Tool Tier: Single Tile (1x1)</span>
+            </div>
+
+            <!-- Labeled guide links (Mechanics guide & Python source viewer) -->
+            <nav class="menu-links" aria-label="Guides">
+                <button type="button" class="menu-link" onclick="openModal('mechanics-modal')" title="Open the mechanics guide">
+                    <img src="https://stardewvalleywiki.com/mediawiki/images/d/df/Book_of_Mysteries.png" alt="">
+                    <span>Mechanics</span>
+                </button>
+                <button type="button" class="menu-link" onclick="openModal('code-modal')" title="Browse the Python source code">
+                    <img src="https://stardewvalleywiki.com/mediawiki/images/1/15/Monster_Compendium.png" alt="">
+                    <span>Source Code</span>
+                </button>
+            </nav>
+
+            <!-- End Day -->
+            <button type="button" class="end-day-btn" onclick="advanceNextDay()">
+                <img src="https://stardewvalleywiki.com/mediawiki/images/archive/f/f4/20160305091000%21Solar_Essence.png" alt="">
+                <span>End Day</span>
+            </button>
         </header>
 
         <!-- ====================================================================
-             2. Master Three-Column Game Board Layout
+             2. Three-Column Game Board
              ==================================================================== -->
         <main class="board">
 
             <!-- ----------------------------------------------------------------
-                 Left Column: Season / Weather Info, Hotbar Inventory & Tools
+                 Left Column - PANEL 2: Stats (Energy / Water / Coins / Well)
+                 Each stat: icon + number ABOVE a glossy progress bar.
+                 Fill widths are set from JS (renderStatBars in ui-core.js).
                  ---------------------------------------------------------------- -->
-            <section class="left-col" aria-label="Inventory and tools">
-                <!-- Season & Active Weather Badge -->
-                <div class="season-badge">
-                    <div class="season-main" id="stat-season">
-                        <img src="https://stardewvalleywiki.com/mediawiki/images/9/9c/Spring.png" alt="Spring Season Icon">
-                        Spring 01
-                    </div>
-                    <div class="season-weather">
-                        <img id="weather-icon" src="https://stardewvalleywiki.com/mediawiki/images/d/d2/StatusSun.png" alt="Sunny Weather Icon">
-                        <span id="stat-weather">Sunny</span>
-                    </div>
-                    <!-- Tool AOE Tier Level Display -->
-                    <span id="aoe-status" class="aoe-status">Tool Tier: Single Tile (1x1)</span>
-                </div>
+            <section class="left-col" aria-label="Player stats">
 
-                <!-- Dual Rail: Hotbar Inventory Slots + Action Tool Column -->
-                <div class="rail">
-                    <!-- Inventory Hash Slot Grid -->
-                    <div class="bar bar-inventory" role="group" aria-label="Inventory">
-                        <div id="mc-inventory-grid" class="inventory-slots"></div>
+                <div class="stat-strip">
+
+                    <!-- PANEL 6 - Weather Channel TV (opens 30-day BST forecast modal) -->
+                    <button class="tv-set-btn" type="button" id="tv-forecast-btn" title="Weather Channel (30-Day Forecast)" onclick="openForecastModal()">
+                        <div class="tv-screen">
+                            <img id="tv-screen-gif" src="https://stardewvalleywiki.com/mediawiki/images/8/8a/LuckStarMax.gif" alt="Weather Channel TV Screen" />
+                        </div>
+                        <!-- Top-right green/red LED alert dot -->
+                        <span id="tv-alert-dot" class="tv-power-led is-safe"></span>
+                    </button>
+                    <!-- Energy -->
+                    <div class="stat-card stat-energy" title="Energy">
+                        <div class="stat-head">
+                            <img src="https://stardewvalleywiki.com/mediawiki/images/archive/d/df/20191209011954%21Max_Energy.png" alt="Energy Stardrop">
+                            <span id="stat-energy" class="stat-value">100</span>
+                            <span class="sr-only">Energy</span>
+                        </div>
+                        <div class="stat-track" role="progressbar" aria-label="Energy" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+                            <div id="stat-energy-fill" class="stat-fill" style="width: 100%"></div>
+                        </div>
                     </div>
 
-                    <!-- Farming Tool Action Selection Bar -->
-                    <div class="bar bar-tools" role="group" aria-label="Tools">
-                        <button type="button" onclick="setTool('shovel')" id="tool-shovel" class="tool-btn" title="Shovel: clear a tile (undo)" aria-label="Shovel" aria-pressed="false">
-                            <img src="https://fieldsofmistria.wiki.gg/images/Iron_Shovel.png?98833a" alt="Shovel" referrerpolicy="no-referrer">
-                        </button>
-                        <button type="button" onclick="setTool('hoe')" id="tool-hoe" class="tool-btn active" title="Hoe: till soil" aria-label="Hoe" aria-pressed="true">
-                            <img src="https://stardewvalleywiki.com/mediawiki/images/8/87/Hoe.png" alt="Hoe">
-                        </button>
-                        <button type="button" onclick="setTool('water')" id="tool-water" class="tool-btn" title="Watering Can" aria-label="Watering Can" aria-pressed="false">
-                            <img src="https://stardewvalleywiki.com/mediawiki/images/5/51/Watering_Can.png" alt="Watering Can">
-                        </button>
-                        <button type="button" onclick="setTool('scythe')" id="tool-scythe" class="tool-btn" title="Scythe: harvest" aria-label="Scythe" aria-pressed="false">
-                            <img src="https://stardewvalleywiki.com/mediawiki/images/c/cd/Scythe.png" alt="Scythe">
-                        </button>
-                        <button type="button" onclick="setTool('plant')" id="tool-plant" class="tool-btn" title="Seeder: plant the selected seed" aria-label="Seeder" aria-pressed="false">
-                            <img src="https://fieldsofmistria.wiki.gg/images/Basic_pouch.png?1c116e" alt="Seeder Pouch" referrerpolicy="no-referrer">
-                        </button>
-                        <button type="button" onclick="setTool('fertilizer')" id="tool-fertilizer" class="tool-btn" title="Fertilizer: shield a crop" aria-label="Fertilizer" aria-pressed="false">
-                            <img src="https://fieldsofmistria.wiki.gg/images/Bag_upgrade.png?849952" alt="Fertilizer Bag" referrerpolicy="no-referrer">
-                        </button>
+                    <!-- Water bucket -->
+                    <div class="stat-card stat-water" title="Water capacity">
+                        <div class="stat-head">
+                            <img src="https://stardewvalleywiki.com/mediawiki/images/b/bf/Frozen_Geode.png" alt="Water Bucket">
+                            <span id="stat-bucket" class="stat-value">5/5</span>
+                            <span class="sr-only">Water capacity</span>
+                        </div>
+                        <div class="stat-track" role="progressbar" aria-label="Water" aria-valuemin="0" aria-valuemax="5" aria-valuenow="5">
+                            <div id="stat-bucket-fill" class="stat-fill" style="width: 100%"></div>
+                        </div>
                     </div>
+
+                    <!-- Coins -->
+                    <div class="stat-card stat-coins" title="Coins">
+                        <div class="stat-head">
+                            <img src="https://stardewvalleywiki.com/mediawiki/images/1/10/Gold.png" alt="Gold Coins">
+                            <span id="stat-coins" class="stat-value">200</span>
+                            <span class="sr-only">Coins</span>
+                        </div>
+                        <div class="stat-track" role="progressbar" aria-label="Coins" aria-valuemin="0" aria-valuemax="250" aria-valuenow="200">
+                            <div id="stat-coins-fill" class="stat-fill" style="width: 80%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Well: sprite + title only -->
+                    <button type="button" id="well-btn" class="well-card" onclick="refillWaterAtWell()" title="Select the Water Can, then click the Well to refill (10 energy)">
+                        <img src="https://stardewvalleywiki.com/mediawiki/images/4/41/Well.png" alt="Water Well">
+                        <span class="well-name">Well</span>
+                    </button>
                 </div>
             </section>
 
             <!-- ----------------------------------------------------------------
-                 Center Column: 5x5 Soil Matrix Grid & Time Advancement Controls
+                 Center Column - action banner + PANEL 3: Garden Grid Matrix Frame
+                 #garden-stage wraps the grid so disaster animations can sit on top of
+                 it without being wiped when matrix_grid.py re-renders #soil-grid.
                  ---------------------------------------------------------------- -->
             <section class="garden-col" aria-label="Garden">
                 <!-- Real-Time User Action Output Banner -->
@@ -152,20 +157,32 @@
                     </div>
                 </div>
 
-                <!-- Interactive 5x5 Matrix Soil Grid (Rendered by matrix_grid.py) -->
-                <div id="soil-grid" class="soil-matrix-grid" role="grid" aria-label="Soil matrix, 5 by 5"></div>
+                <div id="garden-stage" class="grid-stage">
+                    <!-- Interactive 5x5 Matrix Soil Grid (Rendered by matrix_grid.py) -->
+                    <div id="soil-grid" class="soil-matrix-grid" role="grid" aria-label="Soil matrix, 5 by 5"></div>
 
-                <!-- Footer Control Bar: End Day Button -->
-                <div class="garden-foot">
-                    <button type="button" class="end-day-btn" onclick="advanceNextDay()">
-                        <img src="https://stardewvalleywiki.com/mediawiki/images/archive/f/f4/20160305091000%21Solar_Essence.png" alt="Solar Essence Icon">
-                        <span>End Day</span>
-                    </button>
+                    <!-- Disaster animation layers: toggled by playDisasterFx() via .is-* on #garden-stage -->
+                    <div id="disaster-fx" class="disaster-fx" aria-hidden="true">
+                        <!-- Earthquake -->
+                        <div class="fx fx-quake"><span class="quake-dust"></span><span class="quake-crack"></span></div>
+                        <!-- Alien Escape -->
+                        <div class="fx fx-ufo"><span class="ufo-beam"></span><span class="ufo-saucer"></span></div>
+                        <!-- Green Rain / Windstorm -->
+                        <div class="fx fx-acid"><span class="acid-rain"></span><span class="acid-wind"></span></div>
+                        <!-- Meteorite Strike -->
+                        <div class="fx fx-meteor">
+                            <span class="meteor-flash"></span>
+                            <span class="meteor m1"></span>
+                            <span class="meteor m2"></span>
+                            <span class="meteor m3"></span>
+                            <span class="meteor-impact"></span>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             <!-- ----------------------------------------------------------------
-                 Right Column: DSA Real-Time Execution Trace Log & Town Hub
+                 Right Column - PANEL 4: Trace Log, PANEL 5: Quests / Shop / Sell
                  ---------------------------------------------------------------- -->
             <section class="right-col" aria-label="Log and town">
                 <!-- DSA Function Execution & Trace Panel -->
@@ -178,14 +195,12 @@
 
                 <!-- Town Hub Container (Tabs: Quests / Shop / Sell) -->
                 <div class="town">
-                    <!-- Navigation Tab Strip -->
                     <div class="tabs" role="tablist" aria-label="Town Hub Navigation">
                         <button type="button" role="tab" id="tab-quests" class="tab active" aria-selected="true" aria-controls="panel-quests" onclick="switchTab('quests')">Quests</button>
                         <button type="button" role="tab" id="tab-shop" class="tab" aria-selected="false" aria-controls="panel-shop" onclick="switchTab('shop')" tabindex="-1">Shop</button>
                         <button type="button" role="tab" id="tab-sell" class="tab" aria-selected="false" aria-controls="panel-sell" onclick="switchTab('sell')" tabindex="-1">Sell</button>
                     </div>
 
-                    <!-- Dynamic Tab Body Content Frame -->
                     <div class="tab-body">
                         <!-- Active Selected Item Indicator -->
                         <p id="active-item-indicator" class="selected-line">Selected: None</p>
@@ -196,17 +211,17 @@
                                 <img id="frog-avatar" src="https://static.wikia.nocookie.net/stardewvalley/images/0/0c/Gourmand_Frog.png/revision/latest/scale-to-width-down/88?cb=20250119051928" alt="Wumbus Gourmand Frog Avatar">
                                 <span class="npc-name">Wumbus</span>
                             </div>
-                                
-                            <div class="npc">                                
+
+                            <div class="npc">
                                 <div class="npc-info">
                                     <div class="npc-title-row">
                                         <span id="frog-title" class="npc-title">Novice Gardener</span>
                                         <!-- Level Badge with Active Perk Tooltip -->
                                         <span id="frog-level" class="level-badge" title="Active Perk: Starter Gear (1x1 Tool Range, 5L Water Can)">Lvl 1</span>
                                     </div>
-                                    
+
                                     <p id="frog-quest-desc" class="npc-quest">"[Basic Harvest] Bring 2x Parsnip (+100 EXP, +40 Gold)"</p>
-                                    
+
                                     <!-- EXP Progress Bar Track -->
                                     <div class="exp-track" aria-hidden="true">
                                         <div id="frog-exp-bar" class="exp-fill" style="width: 0%"></div>
@@ -224,7 +239,7 @@
                             <p class="panel-copy">Fertilizer to shield your crops, and seed bags with seasonal surprises.</p>
                             <div class="panel-actions">
                                 <button type="button" class="btn btn-gold" onclick="openModal('shop-modal')">
-                                    <img src="https://stardewvalleywiki.com/mediawiki/images/9/94/Traveling_Cart.png" alt="Traveling Cart Icon">
+                                    <img src="https://stardewvalleywiki.com/mediawiki/images/9/94/Traveling_Cart.png" alt="">
                                     <span>Open shop</span>
                                 </button>
                             </div>
@@ -235,7 +250,7 @@
                             <p class="panel-copy">Pick a harvested crop in your inventory, then sell it to Wumbus for coins.</p>
                             <div class="panel-actions">
                                 <button type="button" class="btn btn-gold" onclick="sellHarvestedCrop()">
-                                    <img src="https://stardewvalleywiki.com/mediawiki/images/b/ba/Foraging.png" alt="Foraging Basket Icon">
+                                    <img src="https://stardewvalleywiki.com/mediawiki/images/b/ba/Foraging.png" alt="">
                                     <span>Sell crop</span>
                                 </button>
                             </div>
@@ -244,6 +259,39 @@
                 </div>
             </section>
         </main>
+
+        <!-- ====================================================================
+             3. Hotbar: tools + inventory share the same slot style (no wrapper chrome)
+             ==================================================================== -->
+        <section class="rail" aria-label="Inventory and tools">
+            <!-- Farming Tool Action Selection Bar -->
+            <div class="bar bar-tools" role="group" aria-label="Tools">
+                <button type="button" onclick="setTool('shovel')" id="tool-shovel" class="tool-btn" title="Shovel: clear a tile (undo)" aria-label="Shovel" aria-pressed="false">
+                    <img src="https://fieldsofmistria.wiki.gg/images/Iron_Shovel.png?98833a" alt="Shovel" referrerpolicy="no-referrer">
+                </button>
+                <button type="button" onclick="setTool('hoe')" id="tool-hoe" class="tool-btn active" title="Hoe: till soil" aria-label="Hoe" aria-pressed="true">
+                    <img src="https://stardewvalleywiki.com/mediawiki/images/8/87/Hoe.png" alt="Hoe">
+                </button>
+                <button type="button" onclick="setTool('water')" id="tool-water" class="tool-btn" title="Watering Can" aria-label="Watering Can" aria-pressed="false">
+                    <img src="https://stardewvalleywiki.com/mediawiki/images/5/51/Watering_Can.png" alt="Watering Can">
+                </button>
+                <button type="button" onclick="setTool('scythe')" id="tool-scythe" class="tool-btn" title="Scythe: harvest" aria-label="Scythe" aria-pressed="false">
+                    <img src="https://stardewvalleywiki.com/mediawiki/images/c/cd/Scythe.png" alt="Scythe">
+                </button>
+                <button type="button" onclick="setTool('plant')" id="tool-plant" class="tool-btn" title="Seeder: plant the selected seed" aria-label="Seeder" aria-pressed="false">
+                    <img src="https://fieldsofmistria.wiki.gg/images/Basic_pouch.png?1c116e" alt="Seeder Pouch" referrerpolicy="no-referrer">
+                </button>
+                <button type="button" onclick="setTool('fertilizer')" id="tool-fertilizer" class="tool-btn" title="Fertilizer: shield a crop" aria-label="Fertilizer" aria-pressed="false">
+                    <img src="https://fieldsofmistria.wiki.gg/images/Bag_upgrade.png?849952" alt="Fertilizer Bag" referrerpolicy="no-referrer">
+                </button>
+            </div>
+
+            <!-- Inventory Hash Slot Grid (rendered by inventory.js) -->
+            <div class="bar bar-inventory" role="group" aria-label="Inventory">
+                <div id="mc-inventory-grid" class="inventory-slots"></div>
+            </div>
+        </section>
+
     </div>
 
     <!-- ====================================================================
@@ -309,15 +357,15 @@
             </div>
 
             <!-- Vertical Scrollable Guide Stack -->
-            <div class="modal-scroll" style="display: flex; flex-direction: column; gap: 12px; max-height: 70vh; padding-right: 6px; overflow-y: auto;">
+            <div class="modal-scroll guide-stack">
 
                 <!-- Section 1: Core Energy & Water Bucket System -->
-                <div style="background: #ffffff; border: 3px solid var(--ink); border-radius: 12px; padding: 12px;">
-                    <h4 style="margin: 0 0 8px 0; font-family: var(--font-display); font-size: 1.1rem; color: #2f5a3a; display: flex; align-items: center; gap: 8px;">
-                        <img src="https://stardewvalleywiki.com/mediawiki/images/archive/d/df/20191209011954%21Max_Energy.png" alt="Energy Icon" style="width: 22px; height: 22px;">
+                <div class="guide-section">
+                    <h4 class="guide-heading">
+                        <img src="https://stardewvalleywiki.com/mediawiki/images/archive/d/df/20191209011954%21Max_Energy.png" alt="Energy Icon">
                         1. Core Energy &amp; Water Bucket System
                     </h4>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: var(--ink);">
+                    <ul class="guide-list">
                         <li><strong>Energy Cost:</strong> Performing tool actions (tilling, watering, planting, fertilizing, harvesting, or clearing) costs <strong>5 Energy</strong> per tile action.</li>
                         <li><strong>Energy Reset:</strong> Clicking <strong>End Day</strong> completely restores your energy back to maximum (100).</li>
                         <li><strong>Watering Bucket:</strong> Watering soil or crops consumes 1L of water. Select the <strong>Watering Can</strong> and click the <strong>Infinite Well</strong> to refill your bucket (costs 10 Energy).</li>
@@ -325,12 +373,12 @@
                 </div>
 
                 <!-- Section 2: Tool Arsenal & AOE Upgrades -->
-                <div style="background: #ffffff; border: 3px solid var(--ink); border-radius: 12px; padding: 12px;">
-                    <h4 style="margin: 0 0 8px 0; font-family: var(--font-display); font-size: 1.1rem; color: #2f5a3a; display: flex; align-items: center; gap: 8px;">
-                        <img src="https://stardewvalleywiki.com/mediawiki/images/8/87/Hoe.png" alt="Hoe Icon" style="width: 22px; height: 22px;">
+                <div class="guide-section">
+                    <h4 class="guide-heading">
+                        <img src="https://stardewvalleywiki.com/mediawiki/images/8/87/Hoe.png" alt="Hoe Icon">
                         2. Tool Arsenal &amp; Area-of-Effect (AOE) Upgrades
                     </h4>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: var(--ink);">
+                    <ul class="guide-list">
                         <li><strong>Shovel:</strong> Clears/reverts a soil tile and removes planted or wilted crops.</li>
                         <li><strong>Hoe:</strong> Tills unplowed soil plots into farmable land.</li>
                         <li><strong>Watering Can:</strong> Waters tilled soil or growing crops (required daily on Sunny days).</li>
@@ -342,12 +390,12 @@
                 </div>
 
                 <!-- Section 3: Seasons, Weather, & Wilting Rules -->
-                <div style="background: #ffffff; border: 3px solid var(--ink); border-radius: 12px; padding: 12px;">
-                    <h4 style="margin: 0 0 8px 0; font-family: var(--font-display); font-size: 1.1rem; color: #2f5a3a; display: flex; align-items: center; gap: 8px;">
-                        <img src="https://stardewvalleywiki.com/mediawiki/images/9/9c/Spring.png" alt="Spring Icon" style="width: 22px; height: 22px;">
+                <div class="guide-section">
+                    <h4 class="guide-heading">
+                        <img src="https://stardewvalleywiki.com/mediawiki/images/9/9c/Spring.png" alt="Spring Icon">
                         3. Seasons, Weather Conditions, &amp; Wilting Rules
                     </h4>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: var(--ink);">
+                    <ul class="guide-list">
                         <li><strong>Seasonal Queue:</strong> Time rotates through <strong>Spring, Summer, Fall (Autumn), and Winter</strong> every 30 in-game days.</li>
                         <li><strong>Sunny Weather:</strong> Soil dries out overnight. Crops must be watered daily with your Watering Can, or they will wilt overnight.</li>
                         <li><strong>Rainy Weather:</strong> Rain automatically waters all tilled soil tiles at the start of the day.</li>
@@ -356,12 +404,12 @@
                 </div>
 
                 <!-- Section 4: 1-Day Forecast Radar & Overnight Disasters -->
-                <div style="background: #ffffff; border: 3px solid var(--ink); border-radius: 12px; padding: 12px;">
-                    <h4 style="margin: 0 0 8px 0; font-family: var(--font-display); font-size: 1.1rem; color: #2f5a3a; display: flex; align-items: center; gap: 8px;">
-                        <img src="https://stardewvalleywiki.com/mediawiki/images/2/22/Stardrop_Animated_JP.gif" alt="Forecast Icon" style="width: 22px; height: 22px;">
+                <div class="guide-section">
+                    <h4 class="guide-heading">
+                        <img src="https://stardewvalleywiki.com/mediawiki/images/2/22/Stardrop_Animated_JP.gif" alt="Forecast Icon">
                         4. Weather Channel Forecast Radar &amp; Overnight Disasters
                     </h4>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: var(--ink);">
+                    <ul class="guide-list">
                         <li><strong>Tomorrow's Forecast Radar:</strong> Click the Weather Channel TV set in the top header to query the 30-day Binary Search Tree (BST) for tomorrow's exact weather and environmental hazards in $O(\log N)$ time.</li>
                         <li><strong>TV Alert Dot:</strong> The LED indicator dot on the TV set glows <strong style="color: #2ed573;">Green</strong> when tomorrow is clear and flashes <strong style="color: #ff4757;">Red</strong> when a hazard is detected for tomorrow.</li>
                         <li><strong>Overnight Disasters:</strong> Advancing the day has a chance to trigger overnight environmental hazards (<em>Meteorite Strike, Alien Escape, Green Rain Windstorm, or Earthquake</em>).</li>
@@ -370,12 +418,12 @@
                 </div>
 
                 <!-- Section 5: Wumbus Quests, EXP, & Mystery Shop -->
-                <div style="background: #ffffff; border: 3px solid var(--ink); border-radius: 12px; padding: 12px;">
-                    <h4 style="margin: 0 0 8px 0; font-family: var(--font-display); font-size: 1.1rem; color: #2f5a3a; display: flex; align-items: center; gap: 8px;">
-                        <img src="https://stardewvalleywiki.com/mediawiki/images/1/10/Gold.png" alt="Gold Coins Icon" style="width: 22px; height: 22px;">
+                <div class="guide-section">
+                    <h4 class="guide-heading">
+                        <img src="https://stardewvalleywiki.com/mediawiki/images/1/10/Gold.png" alt="Gold Coins Icon">
                         5. Wumbus Quests, EXP Progression, &amp; Mystery Shop
                     </h4>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: var(--ink);">
+                    <ul class="guide-list">
                         <li><strong>Hierarchical Quest Tree:</strong> Wumbus requests specific quantities of seasonal crops. Select the crop in your hotbar and click <strong>"Give"</strong> in the Quests tab to submit it.</li>
                         <li><strong>Leveling &amp; Rewards:</strong> Submitting quest crops grants EXP and Gold. Leveling up unlocks higher tool AOE tiers, bonus coins, and expanded water bucket capacity!</li>
                         <li><strong>Tiered Mystery Seed Bags:</strong>
@@ -398,7 +446,7 @@
             <div class="modal-header">
                 <h3 id="code-title" class="modal-title">
                     <img src="https://stardewvalleywiki.com/mediawiki/images/1/15/Monster_Compendium.png" alt="Monster Compendium Icon">
-                    <span>Module Reference</span>
+                    <span>Source Code</span>
                 </h3>
                 <button type="button" class="modal-close" onclick="closeModal('code-modal')" aria-label="Close">
                     <img src="https://stardewvalleywiki.com/mediawiki/images/9/91/Error-image-ingame.png" alt="Close Modal">
